@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>อสม. พลัส (VHV Plus) - ระบบจัดการข้อมูลสาธารณสุข</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
+  
+  <style>
+    body { font-family: 'Sarabun', sans-serif; margin: 20px; background-color: #f4f7f6; color: #333; }
+    h2 { text-align: center; color: #2c3e50; margin-bottom: 20px; }
+    
+    /* แท็บเมนู */
+    .nav-tabs { display: flex; justify-content: center; gap: 10px; margin-bottom: 25px; }
+    .tab-btn { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 24px; font-size: 16px; font-weight: 600; border: none; background-color: #e0e0e0; color: #555; border-radius: 5px; cursor: pointer; transition: all 0.3s ease; font-family: 'Sarabun', sans-serif; }
+    .tab-icon { font-size: 1.2em; }
+    .tab-btn.active { background-color: #009688; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.15); }
+    .tab-btn:hover { background-color: #d5d5d5; }
+    .tab-btn.active:hover { background-color: #00897b; }
+
+    /* ตัวกรอง และ การ์ดสรุป */
+    .filter-container { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; align-items: center; }
+    .filter-item { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+    select { padding: 8px 12px; font-size: 16px; border-radius: 4px; border: 1px solid #ccc; min-width: 250px; font-family: 'Sarabun', sans-serif; outline: none; }
+    select:focus { border-color: #009688; }
+    .dashboard-cards { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }
+    .card { flex: 1; min-width: 180px; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center; }
+    .card h3 { margin: 0; font-size: 1em; color: #666; font-weight: normal; }
+    .card .value { font-size: 2.2em; font-weight: bold; margin: 10px 0 0 0; }
+    .text-primary { color: #007bff; } .text-success { color: #28a745; } .text-warning { color: #ff9800; } .text-info { color: #17a2b8; } .text-purple { color: #6f42c1 !important; }
+    .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.9em; font-weight: bold; }
+    .bg-success-light { background-color: #d4edda; color: #155724; }
+    .bg-warning-light { background-color: #fff3cd; color: #856404; }
+
+    /* ตารางข้อมูล */
+    .table-container { overflow-x: auto; background-color: #fff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th, td { border: 1px solid #ddd; padding: 12px; text-align: center; }
+    .text-left { text-align: left !important; }
+    th { background-color: #009688; color: white; position: sticky; top: 0; }
+    tr:nth-child(even) {background-color: #f9f9f9;}
+    tr:hover {background-color: #f1f1f1;}
+    .loading { text-align: center; color: #666; font-size: 1.2em; padding: 40px; }
+    .table-thumb { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #ddd; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .house-list { max-width: 350px; word-wrap: break-word; font-size: 0.95em; color: #444; line-height: 1.6; }
+
+    /* หน้าประวัติ อสม. */
+    .profile-hero-card { display: flex; flex-wrap: wrap; gap: 25px; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 25px; border-top: 5px solid #6f42c1; align-items: center; }
+    .profile-image-container { flex-shrink: 0; text-align: center; }
+    .profile-img { width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid #f4f7f6; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    .profile-details { flex: 1; min-width: 250px; }
+    .profile-name { font-size: 1.8em; font-weight: bold; color: #2c3e50; margin: 0 0 10px 0; }
+    .profile-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+    .info-box { background: #f8f9fa; padding: 12px 15px; border-radius: 8px; border-left: 4px solid #009688; }
+    .info-box span { display: block; font-size: 0.85em; color: #777; margin-bottom: 3px; }
+    .info-box strong { font-size: 1em; color: #333; word-break: break-all; }
+    .profile-summary-stat { background: #eef2f5; padding: 20px; border-radius: 12px; text-align: center; min-width: 160px; }
+    .profile-summary-stat h4 { margin: 0 0 10px 0; color: #555; font-size: 1em;}
+    .profile-summary-stat .big-num { font-size: 2.8em; font-weight: bold; color: #6f42c1; line-height: 1; }
+    .profile-summary-stat .unit { font-size: 1em; color: #777; }
+
+    /* ฟอร์มและ Input */
+    .form-group { margin-bottom: 20px; text-align: left;}
+    .form-group label { display: block; font-weight: bold; margin-bottom: 5px; color: #333; }
+    input[type="text"], input[type="password"], .form-group textarea, .form-group input[type="file"] { width: 100%; padding: 12px 15px; border: 1px solid #ccc; border-radius: 5px; font-family: 'Sarabun', sans-serif; font-size: 16px; box-sizing: border-box; transition: border-color 0.3s; }
+    input[type="text"]:focus, input[type="password"]:focus, .form-group textarea:focus { border-color: #009688; outline: none; }
+    
+    .btn-edit-profile { background-color: #ff9800; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-size: 1em; font-weight: bold; font-family: 'Sarabun', sans-serif; transition: 0.3s; margin-top: 15px; width: 100%; }
+    .btn-save { background-color: #009688; color: white; border: none; padding: 12px; width: 100%; border-radius: 5px; font-size: 1.1em; font-weight: bold; cursor: pointer; font-family: 'Sarabun', sans-serif; transition: 0.3s; }
+    .btn-save:hover { background-color: #00796b; }
+    .btn-save:disabled { background-color: #ccc; cursor: not-allowed; }
+
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
+    .modal-content { background: #fff; width: 90%; max-width: 500px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.3); overflow: hidden; }
+    .modal-header { background: #6f42c1; color: white; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+    .modal-header h3 { margin: 0; font-size: 1.2em; }
+    .close-btn { background: none; border: none; color: white; font-size: 1.5em; cursor: pointer; }
+    .modal-body { padding: 20px; max-height: 80vh; overflow-y: auto; }
+
+    /* หน้า Login */
+    .login-page { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: linear-gradient(135deg, #009688 0%, #2c3e50 100%); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+    .login-card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 90%; max-width: 400px; }
+    .login-logo { display: block; margin: 0 auto 20px auto; width: 100px; height: auto; }
+    .password-wrapper { position: relative; display: flex; align-items: center; }
+    .toggle-password { position: absolute; right: 15px; cursor: pointer; user-select: none; font-size: 18px; color: #888; }
+    
+    .user-status-bar { display: flex; justify-content: space-between; align-items: center; background: #2c3e50; color: white; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); flex-wrap: wrap; gap: 10px; }
+    .btn-logout { background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-family: 'Sarabun'; font-weight: bold; }
+    .btn-print { background-color: #607d8b; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; font-family: 'Sarabun'; }
+
+    /* มือถือ */
+    @media screen and (max-width: 768px) {
+      body { margin: 10px; margin-bottom: 80px; }
+      .nav-tabs { position: fixed; bottom: 0; left: 0; width: 100%; background-color: #fff; margin: 0; padding: 0; box-shadow: 0 -3px 15px rgba(0,0,0,0.15); z-index: 1000; justify-content: space-around; border-top: 1px solid #eee; }
+      .tab-btn { flex-direction: column; gap: 4px; flex: 1; padding: 12px 5px; border-radius: 0; background: none; color: #888; font-size: 12px; }
+      .tab-btn.active { background: none; color: #009688; box-shadow: none; border-top: 3px solid #009688; }
+      .tab-icon { font-size: 1.5em; }
+      .tab-btn:hover, .tab-btn.active:hover { background: none; }
+      .login-card { width: 85%; padding: 30px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="login-container" class="login-page">
+    <div class="login-card">
+      <img src="https://lh3.googleusercontent.com/d/1nT4I_XyBwaClH6GMqc7Z5ma9ieY7polz" alt="โลโก้หน่วยงาน" class="login-logo">
+      <h3 style="text-align:center; color:#009688; margin-bottom:20px;">ระบบรายงานและติดตาม อสม.</h3>
+      
+      <div class="form-group">
+        <label>ชื่อผู้ใช้งาน (Username)</label>
+        <input type="text" id="loginUsername" placeholder="กรอกชื่อผู้ใช้งาน" autocomplete="off">
+      </div>
+      
+      <div class="form-group">
+        <label>รหัสผ่าน (Password)</label>
+        <div class="password-wrapper">
+          <input type="password" id="loginPassword" placeholder="กรอกรหัสผ่าน">
+          <span class="toggle-password" onclick="togglePassword()">👁️</span>
+        </div>
+      </div>
+      
+      <div id="login-status" style="display:none; color:#009688; text-align:center; margin-bottom:10px; font-weight:bold;">⏳ กำลังตรวจสอบข้อมูล...</div>
+      <div id="login-error" style="display:none; color:#dc3545; text-align:center; margin-bottom:10px; font-weight:bold;"></div>
+      
+      <button class="btn-save" id="btnLogin" onclick="processLogin()">เข้าสู่ระบบ</button>
+    </div>
+  </div>
+
+  <div id="app-container" style="display:none;">
+    <div class="user-status-bar">
+      <div id="welcome-text">👤 ยินดีต้อนรับ: ผู้ดูแลระบบ</div>
+      <button class="btn-logout" onclick="processLogout()">ออกจากระบบ 🚪</button>
+    </div>
+
+    <h2>📊 ระบบรายงานและติดตามการเยี่ยมบ้านโดย อสม.</h2>
+    
+    <div class="nav-tabs">
+      <button id="btn-overview" class="tab-btn active" onclick="switchPage('overview')"><span class="tab-icon">📊</span><span class="tab-text">ภาพรวม</span></button>
+      <button id="btn-individual" class="tab-btn" onclick="switchPage('individual')"><span class="tab-icon">📋</span><span class="tab-text">รายบุคคล</span></button>
+      <button id="btn-profile" class="tab-btn" onclick="switchPage('profile')"><span class="tab-icon">🧑‍⚕️</span><span class="tab-text">ประวัติ อสม.</span></button>
+      <button id="btn-summary" class="tab-btn" onclick="switchPage('summary')"><span class="tab-icon">📑</span><span class="tab-text">สรุปข้อมูล</span></button>
+    </div>
+
+    <div id="loading" class="loading">⏳ กำลังโหลดข้อมูลฐานข้อมูล...</div>
+
+    <div id="main-content" style="display:none;">
+      
+      <div id="page-overview">
+        <div class="filter-container">
+          <div class="filter-item"><label>หมู่ที่ :</label><select id="mooFilter" onchange="renderOverview()"><option value="all">-- ทุกหมู่ --</option></select></div>
+          <div class="filter-item"><label>ชุมชนบ้าน :</label><select id="communityFilter" onchange="renderOverview()"><option value="all">-- ทุกชุมชน --</option></select></div>
+        </div>
+        <div class="dashboard-cards">
+          <div class="card"><h3>จำนวน อสม. ในพื้นที่</h3><div id="card-vhv-count" class="value text-purple">0</div></div>
+          <div class="card"><h3>เป้าหมายรับผิดชอบ</h3><div id="card-total" class="value text-primary">0</div></div>
+          <div class="card"><h3>เยี่ยมแล้ว</h3><div id="card-completed" class="value text-success">0</div></div>
+          <div class="card"><h3>รอดำเนินการ</h3><div id="card-pending" class="value text-warning">0</div></div>
+          <div class="card"><h3>ความครอบคลุม</h3><div id="card-percent" class="value text-info">0.00%</div></div>
+        </div>
+        <div class="table-container"><div id="overview-table-area"></div></div>
+      </div>
+
+      <div id="page-individual" style="display:none;">
+        <div class="filter-container">
+          <div class="filter-item"><label>หมู่ที่ :</label><select id="indMooFilter" onchange="updateVhvOptions()"><option value="all">-- ทุกหมู่ --</option></select></div>
+          <div class="filter-item"><label>ชุมชนบ้าน :</label><select id="indCommunityFilter" onchange="updateVhvOptions()"><option value="all">-- ทุกชุมชน --</option></select></div>
+          <div class="filter-item"><label class="text-purple">รายชื่อ อสม. :</label><select id="vhvSelectFilter" onchange="renderIndividual()"><option value="">-- กรุณาเลือก อสม. --</option></select></div>
+        </div>
+        <div class="dashboard-cards">
+          <div class="card"><h3>หลังคาเรือนรับผิดชอบ</h3><div id="ind-card-total" class="value text-primary">0</div></div>
+          <div class="card"><h3>เยี่ยมเรียบร้อยแล้ว</h3><div id="ind-card-completed" class="value text-success">0</div></div>
+          <div class="card"><h3>รอดำเนินการ</h3><div id="ind-card-pending" class="value text-warning">0</div></div>
+          <div class="card"><h3>ความครอบคลุม</h3><div id="ind-card-percent" class="value text-info">0.00%</div></div>
+        </div>
+        <div class="table-container">
+          <h3 id="ind-table-title" style="color: #2c3e50; margin-top: 0;">รายการบ้านเลขที่ในการดูแล</h3>
+          <div id="individual-table-area"></div>
+        </div>
+      </div>
+
+      <div id="page-profile" style="display:none;">
+        <div class="filter-container">
+          <div class="filter-item"><label class="text-purple" style="font-weight: 600;">ค้นหา/เลือกรายชื่อ อสม. :</label><select id="profileVhvSelect" onchange="renderProfileMain()"><option value="">-- เลือก อสม. เพื่อดูประวัติ --</option></select></div>
+        </div>
+        <div id="profile-info-area"></div>
+        <div id="profile-table-section" class="table-container" style="display:none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; border-bottom: 2px solid #009688; padding-bottom: 10px; margin-bottom: 15px;">
+            <h3 style="color: #2c3e50; margin: 0;">🏡 แจกแจงรายการบ้านเลขที่</h3>
+            <div style="display: flex; gap: 15px;"><select id="profTableMoo" onchange="renderProfileTable()"><option value="all">-- ทุกหมู่ --</option></select><select id="profTableCommunity" onchange="renderProfileTable()"><option value="all">-- ทุกชุมชน --</option></select></div>
+          </div>
+          <div id="profile-table-area"></div>
+        </div>
+      </div>
+
+      <div id="page-summary" style="display:none;">
+        <div class="filter-container">
+          <div class="filter-item"><label class="text-primary" style="font-weight: 600;">กรองเลือกชุมชน :</label><select id="sumCommunityFilter" onchange="renderSummaryTable()"><option value="all">-- แสดงข้อมูล อสม. ทุกชุมชน --</option></select></div>
+          <div class="filter-item"><button class="btn-print" onclick="window.print()">🖨️ พิมพ์ตาราง</button></div>
+        </div>
+        <div class="table-container"><div id="summary-table-area"></div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="editModal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header"><h3>✏️ แก้ไขข้อมูลประวัติ อสม.</h3><button class="close-btn" onclick="closeEditModal()">✖</button></div>
+      <div class="modal-body">
+        <form id="editProfileForm">
+          <input type="hidden" id="editVhvId"><input type="hidden" id="editVhvName"><input type="hidden" id="existingImageUrl">
+          <div class="form-group"><label>ชื่อ-นามสกุล</label><input type="text" id="editFullName" disabled style="background:#e9ecef;"></div>
+          <div class="form-group"><label>เบอร์โทรศัพท์ติดต่อ</label><input type="text" id="editPhone"></div>
+          <div class="form-group"><label>อีเมล (Email)</label><input type="text" id="editEmail" placeholder="ระบุอีเมล (ถ้ามี)"></div>
+          <div class="form-group"><label>Line ID</label><input type="text" id="editLineId" placeholder="ระบุไอดีไลน์ (ถ้ามี)"></div>
+          <div class="form-group"><label>ที่อยู่ปัจจุบัน</label><textarea id="editAddress" rows="3"></textarea></div>
+          <div class="form-group"><label>อัปโหลดรูปโปรไฟล์ใหม่</label><input type="file" id="editImageFile" accept="image/jpeg, image/png"></div>
+          <div id="save-status" style="display:none; color:#009688; text-align:center;">⏳ กำลังบันทึกข้อมูล...</div>
+          <button type="button" class="btn-save" id="btnSaveProfile" onclick="submitProfileData()">💾 บันทึกข้อมูล</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ⭐️⭐️ นำลิงก์ Web App จาก Google Apps Script มาใส่ตรงนี้ ⭐️⭐️
+    const API_URL = "https://script.google.com/macros/s/AKfycbx53mkejaNiwuVxxbytSMyKtAXJ-1cJ3a00txysoVYXDcsSHm9YStO6O1ZGdqLgf5e9rQ/exec";
+
+    let globalRecords = []; let globalVhvs = []; let globalProfiles = {}; let currentUserContext = null; 
+
+    window.onload = function() {
+      let savedUser = sessionStorage.getItem('authVhvUser');
+      if (savedUser) { currentUserContext = JSON.parse(savedUser); showDashboardApp(); } 
+      else { showLoginScreen(); }
+    };
+
+    function togglePassword() {
+      const pwd = document.getElementById('loginPassword');
+      pwd.type = pwd.type === 'password' ? 'text' : 'password';
+    }
+
+    function showLoginScreen() {
+      document.getElementById('login-container').style.display = 'flex';
+      document.getElementById('app-container').style.display = 'none';
+    }
+
+    // ฟังก์ชันยิงข้อมูลไปหา Apps Script (แทน google.script.run ตัวเก่า)
+    async function callAPI(payload) {
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        return await response.json();
+      } catch (error) {
+        throw new Error("การเชื่อมต่อล้มเหลว: " + error.message);
+      }
+    }
+
+    async function processLogin() {
+      const user = document.getElementById('loginUsername').value;
+      const pass = document.getElementById('loginPassword').value;
+      if (!user || !pass) { alert("⚠️ กรุณากรอกชื่อผู้ใช้และรหัสผ่าน"); return; }
+
+      document.getElementById('btnLogin').disabled = true;
+      document.getElementById('login-status').style.display = 'block';
+      document.getElementById('login-error').style.display = 'none';
+
+      try {
+        const res = await callAPI({ action: 'login', username: user, password: pass });
+        document.getElementById('btnLogin').disabled = false;
+        document.getElementById('login-status').style.display = 'none';
+        
+        if (res.success) {
+          currentUserContext = res;
+          sessionStorage.setItem('authVhvUser', JSON.stringify(res)); 
+          showDashboardApp();
+        } else {
+          document.getElementById('login-error').innerText = "❌ " + res.message;
+          document.getElementById('login-error').style.display = 'block';
+        }
+      } catch (error) {
+        document.getElementById('btnLogin').disabled = false;
+        document.getElementById('login-status').style.display = 'none';
+        alert("❌ " + error.message);
+      }
+    }
+
+    function processLogout() {
+      sessionStorage.removeItem('authVhvUser'); currentUserContext = null;
+      document.getElementById('loginUsername').value = ''; document.getElementById('loginPassword').value = '';
+      document.getElementById('login-error').style.display = 'none';
+      document.getElementById('app-container').style.display = 'none';
+      document.getElementById('login-container').style.display = 'flex';
+    }
+
+    async function showDashboardApp() {
+      document.getElementById('login-container').style.display = 'none';
+      document.getElementById('app-container').style.display = 'block';
+      
+      let roleText = currentUserContext.role === 'admin' ? "ผู้ดูแลระบบ" : currentUserContext.community;
+      document.getElementById('welcome-text').innerText = "👤 ยินดีต้อนรับ: " + currentUserContext.fullname + " [" + roleText + "]";
+
+      if (currentUserContext.role === 'user') {
+        document.getElementById('btn-summary').style.display = 'none';
+        document.getElementById('communityFilter').parentElement.style.display = 'none';
+        document.getElementById('indCommunityFilter').parentElement.style.display = 'none';
+        document.getElementById('profTableCommunity').parentElement.style.display = 'none';
+      } else {
+        document.getElementById('btn-summary').style.display = 'inline-block';
+        document.getElementById('communityFilter').parentElement.style.display = 'flex';
+        document.getElementById('indCommunityFilter').parentElement.style.display = 'flex';
+        document.getElementById('profTableCommunity').parentElement.style.display = 'flex';
+      }
+
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('main-content').style.display = 'none';
+      
+      try {
+        const response = await callAPI({ action: 'getDashboardData', userContext: currentUserContext });
+        initializeData(response);
+      } catch(error) {
+        document.getElementById('loading').innerHTML = '<span style="color:red;">❌ ' + error.message + '</span>';
+      }
+    }
+
+    function initializeData(response) {
+      if (response.error) { document.getElementById('loading').innerHTML = '<span style="color:red;">❌ ' + response.error + '</span>'; return; }
+      
+      globalRecords = response.records; globalVhvs = response.vhvs; globalProfiles = response.profiles; 
+
+      const mooFilterEl = document.getElementById('mooFilter'); const indMooFilterEl = document.getElementById('indMooFilter');
+      mooFilterEl.innerHTML = '<option value="all">-- แสดงทั้งหมดทุกหมู่ --</option>'; indMooFilterEl.innerHTML = '<option value="all">-- ทุกหมู่ --</option>';
+      response.moos.forEach(m => { mooFilterEl.insertAdjacentHTML('beforeend', '<option value="' + m + '">หมู่ ' + m + '</option>'); indMooFilterEl.insertAdjacentHTML('beforeend', '<option value="' + m + '">หมู่ ' + m + '</option>'); });
+
+      const comFilterEl = document.getElementById('communityFilter'); const indComFilterEl = document.getElementById('indCommunityFilter'); const sumComFilterEl = document.getElementById('sumCommunityFilter');
+      comFilterEl.innerHTML = '<option value="all">-- แสดงทั้งหมดทุกชุมชน --</option>'; indComFilterEl.innerHTML = '<option value="all">-- ทุกชุมชน --</option>'; sumComFilterEl.innerHTML = '<option value="all">-- แสดงข้อมูล อสม. ทุกชุมชน --</option>';
+      response.communities.forEach(c => { comFilterEl.insertAdjacentHTML('beforeend', '<option value="' + c + '">' + c + '</option>'); indComFilterEl.insertAdjacentHTML('beforeend', '<option value="' + c + '">' + c + '</option>'); sumComFilterEl.insertAdjacentHTML('beforeend', '<option value="' + c + '">' + c + '</option>'); });
+
+      const profSelectEl = document.getElementById('profileVhvSelect');
+      profSelectEl.innerHTML = '<option value="">-- กรุณาเลือก อสม. เพื่อดูประวัติ --</option>';
+      globalVhvs.forEach((v, index) => { profSelectEl.insertAdjacentHTML('beforeend', '<option value="' + v + '">' + (index + 1) + '. ' + v + '</option>'); });
+
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('main-content').style.display = 'block';
+
+      let reopenProfile = sessionStorage.getItem('reopenProfile');
+      if (reopenProfile) {
+        updateVhvOptions(); switchPage('profile'); document.getElementById('profileVhvSelect').value = reopenProfile; renderProfileMain(); sessionStorage.removeItem('reopenProfile'); 
+      } else {
+        renderOverview(); updateVhvOptions(); 
+        if (currentUserContext.role === 'admin') renderSummaryTable();
+      }
+    }
+
+    function switchPage(page) {
+      if (page === 'summary' && currentUserContext.role !== 'admin') return;
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById('btn-' + page).classList.add('active');
+      document.getElementById('page-overview').style.display = 'none'; document.getElementById('page-individual').style.display = 'none'; document.getElementById('page-profile').style.display = 'none'; document.getElementById('page-summary').style.display = 'none';
+      document.getElementById('page-' + page).style.display = 'block';
+      if(page === 'overview') renderOverview(); else if(page === 'profile') renderProfileMain(); else if(page === 'summary') renderSummaryTable();
+    }
+
+    function renderOverview() {
+      const sMoo = document.getElementById('mooFilter').value; const sCom = document.getElementById('communityFilter').value;
+      let filtered = globalRecords.filter(r => (sMoo === 'all' || r.moo === sMoo) && (sCom === 'all' || r.community === sCom));
+      let tHouses = 0, tComp = 0; let areaSum = {}; let uVhvs = new Set(); 
+      
+      filtered.forEach(r => {
+        tHouses += r.total; tComp += r.completed; uVhvs.add(r.vhvName);
+        let key = "ม." + r.moo + "|" + r.community; 
+        if (!areaSum[key]) areaSum[key] = { moo: r.moo, community: r.community, total: 0, completed: 0 };
+        areaSum[key].total += r.total; areaSum[key].completed += r.completed;
+      });
+      
+      document.getElementById('card-vhv-count').innerText = uVhvs.size.toLocaleString(); document.getElementById('card-total').innerText = tHouses.toLocaleString();
+      document.getElementById('card-completed').innerText = tComp.toLocaleString(); document.getElementById('card-pending').innerText = (tHouses - tComp).toLocaleString();
+      document.getElementById('card-percent').innerText = (tHouses === 0 ? 0 : (tComp / tHouses) * 100).toFixed(2) + '%';
+      
+      let tData = Object.keys(areaSum).map(k => { let d = areaSum[k]; return { moo: d.moo, community: d.community, total: d.total, completed: d.completed, pending: d.total - d.completed, percent: d.total === 0 ? 0 : (d.completed / d.total) * 100 };
+      }).sort((a, b) => { let nA = parseInt(a.moo); let nB = parseInt(b.moo); if (!isNaN(nA) && !isNaN(nB) && nA !== nB) return nA - nB; return a.community.localeCompare(b.community, 'th'); }); 
+      
+      let html = '<table><thead><tr><th style="width: 60px;">ลำดับ</th><th>หมู่ที่</th><th class="text-left">ชุมชนบ้าน</th><th>หลังคาเรือน</th><th>เยี่ยมแล้ว</th><th>รอดำเนินการ</th><th>ความครอบคลุม</th></tr></thead><tbody>';
+      if (tData.length === 0) { html += '<tr><td colspan="7">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>'; } 
+      else { tData.forEach((row, i) => { let col = row.percent >= 80 ? '#28a745' : (row.percent >= 50 ? '#ff9800' : '#dc3545'); html += '<tr><td><strong>' + (i+1) + '</strong></td><td>หมู่ ' + row.moo + '</td><td class="text-left">' + row.community + '</td><td>' + row.total + '</td><td>' + row.completed + '</td><td>' + row.pending + '</td><td style="color:' + col + '; font-weight:bold;">' + row.percent.toFixed(2) + '%</td></tr>'; }); }
+      html += '</tbody></table>'; document.getElementById('overview-table-area').innerHTML = html;
+    }
+
+    function updateVhvOptions() {
+      const sMoo = document.getElementById('indMooFilter').value; const sCom = document.getElementById('indCommunityFilter').value;
+      let valid = new Set();
+      globalRecords.forEach(r => { if ((sMoo === 'all' || r.moo === sMoo) && (sCom === 'all' || r.community === sCom)) valid.add(r.vhvName); });
+      let arr = Array.from(valid).sort();
+      const el = document.getElementById('vhvSelectFilter'); el.innerHTML = '<option value="">-- กรุณาเลือก อสม. --</option>'; 
+      arr.forEach((v, index) => { el.insertAdjacentHTML('beforeend', '<option value="' + v + '">' + (index + 1) + '. ' + v + '</option>'); }); 
+      renderIndividual(); 
+    }
+
+    function renderIndividual() {
+      const selVHV = document.getElementById('vhvSelectFilter').value;
+      if (!selVHV) { document.getElementById('individual-table-area').innerHTML = ''; return; }
+      const sMoo = document.getElementById('indMooFilter').value; const sCom = document.getElementById('indCommunityFilter').value;
+      let houses = globalRecords.filter(r => r.vhvName === selVHV && (sMoo === 'all' || r.moo === sMoo) && (sCom === 'all' || r.community === sCom));
+      let tot = houses.length; let comp = houses.filter(r => r.completed === 1).length; let pend = tot - comp; let pct = tot === 0 ? 0 : (comp / tot) * 100;
+      document.getElementById('ind-card-total').innerText = tot + " หลัง"; document.getElementById('ind-card-completed').innerText = comp + " หลัง"; document.getElementById('ind-card-pending').innerText = pend + " หลัง"; document.getElementById('ind-card-percent').innerText = pct.toFixed(2) + "%";
+      document.getElementById('ind-table-title').innerText = "📋 รายการบ้านเลขที่ในการดูแลของ: " + selVHV;
+      let html = '<table><thead><tr><th style="width: 60px;">ลำดับ</th><th>หมู่ที่</th><th class="text-left">ชุมชนบ้าน</th><th>บ้านเลขที่</th><th>สถานะการดำเนินงาน</th></tr></thead><tbody>';
+      if (houses.length === 0) { html += '<tr><td colspan="5">ไม่มีข้อมูลบ้านในความรับผิดชอบ</td></tr>'; } 
+      else { houses.forEach((h, i) => { let bc = h.completed === 1 ? 'status-badge bg-success-light' : 'status-badge bg-warning-light'; html += '<tr><td><strong>' + (i + 1) + '</strong></td><td>หมู่ ' + h.moo + '</td><td class="text-left">' + h.community + '</td><td><strong>' + h.houseNo + '</strong></td><td><span class="' + bc + '">' + h.statusText + '</span></td></tr>'; }); }
+      html += '</tbody></table>'; document.getElementById('individual-table-area').innerHTML = html;
+    }
+
+    function renderProfileMain() {
+      const sVHV = document.getElementById('profileVhvSelect').value; const pArea = document.getElementById('profile-info-area'); const tSec = document.getElementById('profile-table-section');
+      if (!sVHV) { pArea.innerHTML = ''; tSec.style.display = 'none'; return; }
+      let vHouses = globalRecords.filter(r => r.vhvName === sVHV); let tCare = vHouses.length; let prof = globalProfiles[sVHV];
+      if (prof) {
+        let img = prof.imageUrl || 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png';
+        pArea.innerHTML = '<div class="profile-hero-card"><div class="profile-image-container"><img src="' + img + '" class="profile-img" referrerpolicy="no-referrer" onerror="this.src=\'https://cdn-icons-png.flaticon.com/512/3135/3135715.png\'"><button class="btn-edit-profile" onclick="openEditModal()">✏️ แก้ไขประวัติ</button></div><div class="profile-details"><h2 class="profile-name">👤 ' + prof.fullName + '</h2><div class="profile-info-grid"><div class="info-box"><span>💳 รหัสประจำตัว (ID)</span><strong>' + (prof.id||'-') + '</strong></div><div class="info-box"><span>📍 พื้นที่รับผิดชอบหลัก</span><strong>' + prof.village + '</strong></div><div class="info-box"><span>📞 เบอร์โทรศัพท์</span><strong>' + prof.phone + '</strong></div><div class="info-box"><span>✉️ อีเมล (Email)</span><strong>' + prof.email + '</strong></div><div class="info-box"><span>💬 Line ID</span><strong>' + prof.lineId + '</strong></div><div class="info-box" style="grid-column: 1 / -1;"><span>🏠 ที่อยู่ (ติดต่อ)</span><strong>' + prof.address + '</strong></div></div></div><div class="profile-summary-stat"><h4>ดูแลบ้านเรือนรวม</h4><div class="big-num">' + tCare + '</div><div class="unit">หลังคาเรือน</div></div></div>';
+      } else { pArea.innerHTML = '<div class="profile-hero-card"><h3 style="color:red;">❌ ไม่พบประวัติในระบบ</h3></div>'; }
+      let moos = new Set(); let coms = new Set(); vHouses.forEach(h => { moos.add(h.moo); coms.add(h.community); });
+      const mSel = document.getElementById('profTableMoo'); const cSel = document.getElementById('profTableCommunity');
+      mSel.innerHTML = '<option value="all">-- ทุกหมู่ --</option>'; Array.from(moos).sort((a,b)=>parseInt(a)-parseInt(b)).forEach(m => mSel.insertAdjacentHTML('beforeend', '<option value="'+m+'">หมู่ '+m+'</option>'));
+      cSel.innerHTML = '<option value="all">-- ทุกชุมชน --</option>'; Array.from(coms).sort().forEach(c => cSel.insertAdjacentHTML('beforeend', '<option value="'+c+'">'+c+'</option>'));
+      tSec.style.display = 'block'; renderProfileTable();
+    }
+
+    function renderProfileTable() {
+      const sVHV = document.getElementById('profileVhvSelect').value; const fMoo = document.getElementById('profTableMoo').value; const fCom = document.getElementById('profTableCommunity').value;
+      let fh = globalRecords.filter(r => r.vhvName === sVHV && (fMoo === 'all' || r.moo === fMoo) && (fCom === 'all' || r.community === fCom));
+      let html = '<table><thead><tr><th style="width: 60px;">ลำดับ</th><th style="width: 100px;">หมู่ที่</th><th class="text-left">ชุมชน</th><th style="font-size: 1.1em; color: #ffeb3b;">📌 บ้านเลขที่</th><th>สถานะ</th></tr></thead><tbody>';
+      if (fh.length === 0) { html += '<tr><td colspan="5">ไม่พบข้อมูลบ้านที่ตรงกับตัวกรอง</td></tr>'; } 
+      else { fh.sort((a, b) => { let diff = parseInt(a.moo) - parseInt(b.moo); if (diff !== 0 && !isNaN(diff)) return diff; return a.community.localeCompare(b.community, 'th'); }).forEach((h, i) => { let bc = h.completed === 1 ? 'status-badge bg-success-light' : 'status-badge bg-warning-light'; html += '<tr><td>' + (i + 1) + '</td><td>หมู่ ' + h.moo + '</td><td class="text-left">' + h.community + '</td><td style="font-size: 1.2em; font-weight: bold; color: #2c3e50;">' + h.houseNo + '</td><td><span class="' + bc + '">' + h.statusText + '</span></td></tr>'; }); }
+      html += '</tbody></table>'; document.getElementById('profile-table-area').innerHTML = html;
+    }
+
+    function renderSummaryTable() {
+      const sCom = document.getElementById('sumCommunityFilter').value;
+      let fRecs = sCom !== 'all' ? globalRecords.filter(r => r.community === sCom) : globalRecords;
+      let sMap = {}; fRecs.forEach(r => { if (!sMap[r.vhvName]) sMap[r.vhvName] = { tot: 0, houses: new Set() }; sMap[r.vhvName].tot += r.total; if(r.houseNo && r.houseNo !== '-') sMap[r.vhvName].houses.add(r.houseNo); });
+      let html = '<table><thead><tr><th style="width: 50px;">ลำดับ</th><th style="width: 70px;">รูปภาพ</th><th class="text-left" style="width: 150px;">ชื่อ อสม.</th><th class="text-left" style="width: 250px;">ข้อมูลติดต่อ</th><th style="width: 100px;">ดูแล (หลัง)</th><th class="text-left">รายการบ้านเลขที่</th></tr></thead><tbody>';
+      let vNames = Object.keys(sMap).sort();
+      if (vNames.length === 0) { html += '<tr><td colspan="6">ไม่พบข้อมูล อสม.</td></tr>'; } 
+      else {
+        vNames.forEach((vhv, i) => {
+          let d = sMap[vhv]; let p = globalProfiles[vhv] || { id: '-', address: '-', phone: '-', email: '-', lineId: '-', imageUrl: 'https://cdn-icons-png.flaticon.com/512/3135/3135715.png' };
+          let hList = Array.from(d.houses).sort((a,b)=>{ let na=parseInt(a); let nb=parseInt(b); if(!isNaN(na)&&!isNaN(nb)&&na!==nb) return na-nb; return a.localeCompare(b); });
+          let info = "💳 ID: " + (p.id!=='-'?p.id:'ไม่ระบุ') + "<br>📍 " + p.address + "<br>📞 " + p.phone;
+          if(p.email!=='-') info += "<br>✉️ " + p.email; if(p.lineId!=='-') info += "<br>💬 Line: " + p.lineId;
+          html += '<tr><td><strong>' + (i+1) + '</strong></td><td><img src="' + p.imageUrl + '" class="table-thumb" referrerpolicy="no-referrer" onerror="this.src=\'https://cdn-icons-png.flaticon.com/512/3135/3135715.png\'"></td><td class="text-left" style="color: #6f42c1; font-weight: 600;">' + vhv + '</td><td class="text-left"><small style="color:#555;">' + info + '</small></td><td><strong style="color:#009688; font-size:1.2em;">' + d.tot + '</strong></td><td class="text-left"><div class="house-list">' + hList.join(', ') + '</div></td></tr>';
+        });
+      }
+      html += '</tbody></table>'; document.getElementById('summary-table-area').innerHTML = html;
+    }
+
+    function openEditModal() { 
+      const sVHV = document.getElementById('profileVhvSelect').value; if (!sVHV) return;
+      let p = globalProfiles[sVHV]; if (!p) return;
+      document.getElementById('editVhvId').value = p.id || ''; document.getElementById('editVhvName').value = sVHV; document.getElementById('editFullName').value = p.fullName;
+      document.getElementById('editPhone').value = p.phone; document.getElementById('editAddress').value = p.address;
+      document.getElementById('editEmail').value = p.email === '-' ? '' : p.email; document.getElementById('editLineId').value = p.lineId === '-' ? '' : p.lineId;
+      document.getElementById('existingImageUrl').value = p.imageUrl; document.getElementById('editImageFile').value = ''; 
+      document.getElementById('editModal').style.display = 'flex';
+    }
+    function closeEditModal() { document.getElementById('editModal').style.display = 'none'; }
+    
+    function submitProfileData() {
+      const vhvName = document.getElementById('editVhvName').value; 
+      const fileInput = document.getElementById('editImageFile'); 
+      const btnSave = document.getElementById('btnSaveProfile'); const statusMsg = document.getElementById('save-status');
+      
+      let formData = { 
+        action: 'saveProfileData',
+        vhvId: document.getElementById('editVhvId').value, vhvName: vhvName, phone: document.getElementById('editPhone').value, 
+        address: document.getElementById('editAddress').value, email: document.getElementById('editEmail').value, lineId: document.getElementById('editLineId').value,
+        existingImageUrl: document.getElementById('existingImageUrl').value, imageFileBase64: null, fileName: '', mimeType: '' 
+      };
+      
+      btnSave.disabled = true; statusMsg.style.display = 'block'; sessionStorage.setItem('reopenProfile', vhvName);
+      
+      if (fileInput.files && fileInput.files.length > 0) {
+        let file = fileInput.files[0]; let reader = new FileReader();
+        reader.onload = function(e) { formData.imageFileBase64 = e.target.result.split(',')[1]; formData.fileName = "VHV_" + vhvName + "_" + file.name; formData.mimeType = file.type; sendDataToBackend(formData); };
+        reader.readAsDataURL(file); 
+      } else { sendDataToBackend(formData); }
+    }
+
+    async function sendDataToBackend(formData) {
+      try {
+        const response = await callAPI(formData);
+        if(response.success) { 
+          alert("✅ บันทึกสำเร็จ: " + response.message); closeEditModal(); 
+          document.getElementById('save-status').style.display = 'none'; document.getElementById('btnSaveProfile').disabled = false; 
+          document.getElementById('loading').style.display = 'block'; document.getElementById('main-content').style.display = 'none'; 
+          // รีเฟรชข้อมูลใหม่
+          const newData = await callAPI({ action: 'getDashboardData', userContext: currentUserContext });
+          initializeData(newData);
+        } else { 
+          alert("❌ เกิดข้อผิดพลาด: " + response.message); 
+          document.getElementById('save-status').style.display = 'none'; document.getElementById('btnSaveProfile').disabled = false; 
+        }
+      } catch (error) { 
+        alert("❌ " + error.message); 
+        document.getElementById('save-status').style.display = 'none'; document.getElementById('btnSaveProfile').disabled = false; 
+      }
+    }
+  </script>
+</body>
+</html>
