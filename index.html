@@ -511,10 +511,10 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<script>
+  <script>
     // 📌 ตั้งค่าตัวแปรหลักสำหรับเชื่อมต่อ Supabase ฐานข้อมูล
     const SUPABASE_URL = 'https://ddjcwswzodkdzjfksmqm.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_S8BweoAVXjzTtSfSdXgjYQ_sTkSQ1Yr'; // ใส่รหัสคีย์ของคุณตรงนี้
+    const SUPABASE_KEY = 'sb_publishable_S8BweoAVXjzTtSfSdXgjYQ_sTkSQ1Yr';
     const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let activeVhvSession = { name: '', role: '', vhvId: '', logo: '' };
@@ -597,7 +597,7 @@
       else if (targetView === 'report') { fetchScreeningReportDataFromServer(); }
     }
 
-    // 🌐 ระบบเช็กบัญชีเข้าใช้งานอิงตามคอลัมน์ภาษาไทยจากไฟล์ users.csv
+    // 🌐 ระบบเช็กบัญชีเข้าใช้งานอิงตามคอลัมน์ภาษาไทยจากไฟล์ users
     async function executeLogin(e) {
       e.preventDefault();
       if (failedLoginAttemptsCount >= 5) {
@@ -644,7 +644,6 @@
           document.querySelectorAll('.admin-staff-only').forEach(el => el.classList.remove('d-none'));
           document.querySelectorAll('.admin-only').forEach(el => el.classList.add('d-none')); 
         } else {
-          // ซ่อมแซมโดยการเติม .classList นำหน้า .add ให้ถูกต้องเรียบร้อยครับ
           document.querySelectorAll('.admin-staff-only').forEach(el => el.classList.add('d-none'));
           document.querySelectorAll('.admin-only').forEach(el => el.classList.add('d-none'));
         }
@@ -720,7 +719,7 @@
       renderReportTable(); 
     }
 
-    // 📊 ประมวลผลแดชบอร์ดสถิติตามหัวข้อตารางภาษาไทยในไฟล์ data.csv
+    // 📊 ประมวลผลแดชบอร์ดสถิติตามหัวข้อตารางภาษาไทยในไฟล์ data
     async function fetchDashboardCountsFromServer() {
       try {
         let query = supabase.from('data').select('*');
@@ -796,7 +795,7 @@
       }
     }
 
-    // 👥 รายชื่อกลุ่มเป้าหมายอิงตามหัวข้อภาษาไทยจากไฟล์ data.csv
+    // 👥 รายชื่อกลุ่มเป้าหมายอิงตามหัวข้อภาษาไทยจากไฟล์ data
     async function fetchPopulationListFromServer() {
       toggleLoaderDisplay(true);
       try {
@@ -997,7 +996,7 @@
       else if (cat === 'ex' && exLow) document.getElementById('panel_freq_ex').classList.toggle('d-none', !exLow.checked);
     }
 
-    // 💾 บันทึกข้อมูลคัดกรอง และ อัปเดตตารางหลัก data (แก้ไขเครื่องหมายคอมมาท้ายบรรทัดแล้ว)
+    // 💾 บันทึกข้อมูลคัดกรอง และ อัปเดตตารางหลัก data
     async function submitFormScreeningData(e) {
       e.preventDefault();
       const wRaw = document.getElementById('in_weight').value;
@@ -1043,7 +1042,7 @@
       try {
         await supabase.from('screening').insert([screenPayload]);
 
-        // อัปเดตเข้าฟิลด์ภาษาไทยตารางหลัก (เติมคอมมาคั่นท้ายแถวถูกต้อง 100%)
+        // อัปเดตข้อมูลเข้าคอลัมน์ภาษาไทย
         await supabase.from('data').update({
           'น้ำหนัก': parseFloat(wRaw),
           'ส่วนสูง': parseFloat(hRaw),
@@ -1172,7 +1171,7 @@
       Swal.fire({ icon: 'success', title: 'อัปเดตโลโก้ประจำหน่วยงานสำเร็จ' });
     }
 
-    // 🔑 จัดการบัญชีผู้ใช้ อสม. อิงตามคอลัมน์ภาษาไทยจาก users.csv
+    // 🔑 จัดการบัญชีผู้ใช้ อสม. อิงตามคอลัมน์ภาษาไทยจาก users
     async function fetchUserAccountsFromServer() {
       toggleLoaderDisplay(true);
       try {
@@ -1196,7 +1195,7 @@
       if (bootstrapUserModalInstance) bootstrapUserModalInstance.show();
     }
 
-  async function executeSaveUserForm(e) {
+    async function executeSaveUserForm(e) {
       e.preventDefault(); 
       const uid = document.getElementById('modal_user_id').value; 
       const payload = {
