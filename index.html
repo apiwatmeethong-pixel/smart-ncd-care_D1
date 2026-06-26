@@ -610,7 +610,7 @@
       const p = document.getElementById('password').value.trim();
 
       try {
-        const { data: users, error } = await supabase.from('users').select('*').eq('ชื่อผู้ใช้', u).eq('รหัสผ่าน', p);[cite: 1]
+        const { data: users, error } = await supabase.from('users').select('*').eq('ชื่อผู้ใช้', u).eq('รหัสผ่าน', p);
         
         if (error || !users || users.length === 0) {
           toggleLoaderDisplay(false);
@@ -632,15 +632,15 @@
 
         failedLoginAttemptsCount = 0;
         const currentLogo = localStorage.getItem('agencyLogoUrl') || 'https://cdn-icons-png.flaticon.com/512/822/822118.png';
-        activeVhvSession = { name: user['ชื่อ - นามสกุลจริง'], role: user['สิทธิ์ระบบ'], vhvId: user['เลขประจำตัว PID อสม.'], logo: currentLogo };[cite: 1]
+        activeVhvSession = { name: user['ชื่อ - นามสกุลจริง'], role: user['สิทธิ์ระบบ'], vhvId: user['เลขประจำตัว PID อสม.'], logo: currentLogo };
         
-        safetySetTextContent('sessionUserName', `คุณ ${user['ชื่อ - นามสกุลจริง']}`);[cite: 1]
-        safetySetTextContent('sessionUserRole', `สิทธิ์บัญชี: ${user['สิทธิ์ระบบ']} (รหัส อสม: ${user['เลขประจำตัว PID อสม.']})`);[cite: 1]
+        safetySetTextContent('sessionUserName', `คุณ ${user['ชื่อ - นามสกุลจริง']}`);
+        safetySetTextContent('sessionUserRole', `สิทธิ์บัญชี: ${user['สิทธิ์ระบบ']} (รหัส อสม: ${user['เลขประจำตัว PID อสม.']})`);
         
-        if (user['สิทธิ์ระบบ'] === 'admin') {[cite: 1]
+        if (user['สิทธิ์ระบบ'] === 'admin') {
           document.querySelectorAll('.admin-staff-only').forEach(el => el.classList.remove('d-none'));
           document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('d-none')); 
-        } else if (user['สิทธิ์ระบบ'] === 'staff') {[cite: 1]
+        } else if (user['สิทธิ์ระบบ'] === 'staff') {
           document.querySelectorAll('.admin-staff-only').forEach(el => el.classList.remove('d-none'));
           document.querySelectorAll('.admin-only').forEach(el => el.classList.add('d-none')); 
         } else {
@@ -651,7 +651,7 @@
         toggleLoaderDisplay(false);
         document.getElementById('loginSection').classList.add('d-none');
         document.getElementById('mainInterface').classList.remove('d-none');
-        Swal.fire({ icon: 'success', title: 'ยินดีต้อนรับเข้าใช้งาน', text: `เจ้าหน้าที่ระบบ: ${user['ชื่อ - นามสกุลจริง']}`, timer: 1500, showConfirmButton: false });[cite: 1]
+        Swal.fire({ icon: 'success', title: 'ยินดีต้อนรับเข้าใช้งาน', text: `เจ้าหน้าที่ระบบ: ${user['ชื่อ - นามสกุลจริง']}`, timer: 1500, showConfirmButton: false });
         changeViewWindow('dash');
 
       } catch (err) {
