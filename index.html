@@ -644,8 +644,9 @@
           document.querySelectorAll('.admin-staff-only').forEach(el => el.classList.remove('d-none'));
           document.querySelectorAll('.admin-only').forEach(el => el.classList.add('d-none')); 
         } else {
-          document.querySelectorAll('.admin-staff-only').forEach(el => el.add('d-none'));
-          document.querySelectorAll('.admin-only').forEach(el => el.add('d-none'));
+          // ซ่อมแซมโดยการเติม .classList นำหน้า .add ให้ถูกต้องเรียบร้อยครับ
+          document.querySelectorAll('.admin-staff-only').forEach(el => el.classList.add('d-none'));
+          document.querySelectorAll('.admin-only').forEach(el => el.classList.add('d-none'));
         }
         
         toggleLoaderDisplay(false);
