@@ -996,7 +996,7 @@
       else if (cat === 'ex' && exLow) document.getElementById('panel_freq_ex').classList.toggle('d-none', !exLow.checked);
     }
 
-    // 💾 บันทึกข้อมูลคัดกรอง และ อัปเดตตารางหลัก data (แปลงเข้าคอลัมน์ภาษาไทยจริง)
+    // 💾 บันทึกข้อมูลคัดกรอง และ อัปเดตตารางหลัก data (แก้ไขเครื่องหมายคอมมาท้ายบรรทัดแล้ว)
     async function submitFormScreeningData(e) {
       e.preventDefault();
       const wRaw = document.getElementById('in_weight').value;
@@ -1042,18 +1042,18 @@
       try {
         await supabase.from('screening').insert([screenPayload]);
 
-        // อัปเดตตาราง data โดยส่งค่าเข้าฟิลด์ที่เป็นภาษาไทยตรง ๆ บน Supabase
+        // อัปเดตเข้าฟิลด์ภาษาไทยตารางหลัก (เติมคอมมาคั่นท้ายแถวถูกต้อง 100%)
         await supabase.from('data').update({
-          'น้ำหนัก': parseFloat(wRaw),[cite: 1]
-          'ส่วนสูง': parseFloat(hRaw),[cite: 1]
-          'รอบเอว': parseFloat(waistRaw),[cite: 1]
-          'SBP': parseInt(sbpRaw),[cite: 1]
-          'DBP': parseInt(dbpRaw),[cite: 1]
-          'BSL': parseInt(bslRaw),[cite: 1]
-          'วันที่คัดกรอง': new Date().toISOString().split('T')[0],[cite: 1]
-          'ผลแปล HT': document.getElementById('rt-bp').innerText,[cite: 1]
-          'ผลแปล DM': document.getElementById('rt-bsl').innerText[cite: 1]
-        }).eq('PID', pidVal);[cite: 1]
+          'น้ำหนัก': parseFloat(wRaw),
+          'ส่วนสูง': parseFloat(hRaw),
+          'รอบเอว': parseFloat(waistRaw),
+          'SBP': parseInt(sbpRaw),
+          'DBP': parseInt(dbpRaw),
+          'BSL': parseInt(bslRaw),
+          'วันที่คัดกรอง': new Date().toISOString().split('T')[0],
+          'ผลแปล HT': document.getElementById('rt-bp').innerText,
+          'ผลแปล DM': document.getElementById('rt-bsl').innerText
+        }).eq('PID', pidVal);
 
         toggleLoaderDisplay(false);
         Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จเข้า Supabase', timer: 1500, showConfirmButton: false });
@@ -1195,28 +1195,28 @@
       if (bootstrapUserModalInstance) bootstrapUserModalInstance.show();
     }
 
-    async function executeSaveUserForm(e) {
+  async function executeSaveUserForm(e) {
       e.preventDefault(); 
       const uid = document.getElementById('modal_user_id').value; 
       const payload = {
-        'ชื่อผู้ใช้': document.getElementById('modal_user').value.trim(),[cite: 1]
-        'รหัสผ่าน': document.getElementById('modal_pass').value.trim(),[cite: 1]
-        'ชื่อ - นามสกุลจริง': document.getElementById('modal_fullname').value.trim(),[cite: 1]
-        'สิทธิ์ระบบ': document.getElementById('modal_type').value,[cite: 1]
-        'หมู่ที่': parseInt(document.getElementById('modal_moo').value),[cite: 1]
-        'เลขประจำตัว PID อสม.': document.getElementById('modal_pid_อสม').value.trim(),[cite: 1]
-        'ชุมชน': 'ชุมชนโทกหัวช้าง'[cite: 1]
+        'ชื่อผู้ใช้': document.getElementById('modal_user').value.trim(),
+        'รหัสผ่าน': document.getElementById('modal_pass').value.trim(),
+        'ชื่อ - นามสกุลจริง': document.getElementById('modal_fullname').value.trim(),
+        'สิทธิ์ระบบ': document.getElementById('modal_type').value,
+        'หมู่ที่': parseInt(document.getElementById('modal_moo').value),
+        'เลขประจำตัว PID อสม.': document.getElementById('modal_pid_อสม').value.trim(),
+        'ชุมชน': 'ชุมชนโทกหัวช้าง'
       };
       
       toggleLoaderDisplay(true);
       try {
         if (uid === "") {
-          const { data: allUsers } = await supabase.from('users').select('รหัสผู้ใช้');[cite: 1]
-          const maxId = allUsers.reduce((max, u) => u['รหัสผู้ใช้'] > max ? u['รหัสผู้ใช้'] : max, 0);[cite: 1]
-          payload['รหัสผู้ใช้'] = maxId + 1;[cite: 1]
+          const { data: allUsers } = await supabase.from('users').select('รหัสผู้ใช้');
+          const maxId = allUsers.reduce((max, u) => u['รหัสผู้ใช้'] > max ? u['รหัสผู้ใช้'] : max, 0);
+          payload['รหัสผู้ใช้'] = maxId + 1;
           await supabase.from('users').insert([payload]);
         } else {
-          await supabase.from('users').update(payload).eq('รหัสผู้ใช้', uid);[cite: 1]
+          await supabase.from('users').update(payload).eq('รหัสผู้ใช้', uid);
         }
         toggleLoaderDisplay(false);
         if (bootstrapUserModalInstance) bootstrapUserModalInstance.hide();
