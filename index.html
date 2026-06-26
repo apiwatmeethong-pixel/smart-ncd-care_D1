@@ -724,7 +724,7 @@
       try {
         let query = supabase.from('data').select('*');
         if (activeVhvSession.role === 'user') {
-          query = query.eq('PID อสม.', activeVhvSession.vhvId);[cite: 1]
+          query = query.eq('PID อสม.', activeVhvSession.vhvId);
         }
         const { data: records } = await query;
         if (!records) return;
@@ -736,14 +736,14 @@
         const tbody = document.getElementById('dashboardSummaryTableBody'); if (!tbody) return; tbody.innerHTML = '';
 
         records.forEach(item => {
-          let hasScreened = (item['วันที่คัดกรอง'] && item['วันที่คัดกรอง'] !== '-');[cite: 1]
+          let hasScreened = (item['วันที่คัดกรอง'] && item['วันที่คัดกรอง'] !== '-');
           if (hasScreened) countScreened++;
 
           let ncdStatusStr = "ยังไม่ได้คัดกรอง";
           let bClass = "bg-secondary";
           
-          let ht = item['ผลแปล HT'] || '';[cite: 1]
-          let dm = item['ผลแปล DM'] || '';[cite: 1]
+          let ht = item['ผลแปล HT'] || '';
+          let dm = item['ผลแปล DM'] || '';
 
           if (ht.includes('สงสัย') || ht.includes('Stage') || dm.includes('สงสัย')) {
             countAlert++;
@@ -765,8 +765,8 @@
 
           if (hasScreened) {
             const tr = document.createElement('tr');
-            let calculatedBmi = (item['น้ำหนัก'] / Math.pow(item['ส่วนสูง'] / 100, 2)).toFixed(1);[cite: 1]
-            tr.innerHTML = `<td data-label="ชื่อ - นามสกุล">${item['ชื่อ-นามสกุล']}</td><td data-label="สรุปสถานะกลุ่ม"><span class="badge ${bClass} fs-6">${ncdStatusStr}</span></td><td data-label="แปลดัชนีมวลกาย" class="text-primary">${calculatedBmi}</td><td data-label="แปลความดัน (HT)">${item['ผลแปล HT'] || '-'}</td><td data-label="แปลน้ำตาล (DM)">${item['ผลแปล DM'] || '-'}</td><td data-label="ประเมินหัวใจ (CVD)">เสี่ยงน้อย</td>`;[cite: 1]
+            let calculatedBmi = (item['น้ำหนัก'] / Math.pow(item['ส่วนสูง'] / 100, 2)).toFixed(1);
+            tr.innerHTML = `<td data-label="ชื่อ - นามสกุล">${item['ชื่อ-นามสกุล']}</td><td data-label="สรุปสถานะกลุ่ม"><span class="badge ${bClass} fs-6">${ncdStatusStr}</span></td><td data-label="แปลดัชนีมวลกาย" class="text-primary">${calculatedBmi}</td><td data-label="แปลความดัน (HT)">${item['ผลแปล HT'] || '-'}</td><td data-label="แปลน้ำตาล (DM)">${item['ผลแปล DM'] || '-'}</td><td data-label="ประเมินหัวใจ (CVD)">เสี่ยงน้อย</td>`;
             tbody.appendChild(tr);
           }
         });
@@ -801,42 +801,42 @@
       try {
         let query = supabase.from('data').select('*');
         if (activeVhvSession.role === 'user') {
-          query = query.eq('PID อสม.', activeVhvSession.vhvId);[cite: 1]
+          query = query.eq('PID อสม.', activeVhvSession.vhvId);
         }
         const { data: records, error } = await query;
         toggleLoaderDisplay(false);
         if (error) throw error;
 
         populationDataset = (records || []).map(r => {
-          let hasScreened = (r['วันที่คัดกรอง'] && r['วันที่คัดกรอง'] !== '-');[cite: 1]
+          let hasScreened = (r['วันที่คัดกรอง'] && r['วันที่คัดกรอง'] !== '-');
           let statusStr = "ยังไม่ได้คัดกรองปีนี้";
           if (hasScreened) {
-            let ht = r['ผลแปล HT'] || '';[cite: 1]
-            let dm = r['ผลแปล DM'] || '';[cite: 1]
+            let ht = r['ผลแปล HT'] || '';
+            let dm = r['ผลแปล DM'] || '';
             if (ht.includes('สงสัย') || dm.includes('สงสัย')) statusStr = "กลุ่มสงสัยป่วย (สีแดง)";
             else if (ht.includes('เสี่ยง') || ht.includes('สูง') || dm.includes('เสี่ยง')) statusStr = "กลุ่มเสี่ยง (สีเหลือง)";
             else statusStr = "กลุ่มปกติ (สีเขียว)";
           }
 
           return {
-            pid: r['PID'],[cite: 1]
-            name: r['ชื่อ-นามสกุล'],[cite: 1]
-            age: r['อายุ'],[cite: 1]
-            gender: r['เพศ'],[cite: 1]
-            address: `บ้านเลขที่ ${r['บ้านเลขที่'] || '-'} ม.${r['หมู่ที่']} โทกหัวช้าง`,[cite: 1]
+            pid: r['PID'],
+            name: r['ชื่อ-นามสกุล'],
+            age: r['อายุ'],
+            gender: r['เพศ'],
+            address: `บ้านเลขที่ ${r['บ้านเลขที่'] || '-'} ม.${r['หมู่ที่']} โทกหัวช้าง`,
             last_screening_status: statusStr,
-            history_ht: r['ประวัติ HT'],[cite: 1]
-            history_dm: r['ประวัติ DM'],[cite: 1]
-            old_weight: r['น้ำหนัก'],[cite: 1]
-            old_height: r['ส่วนสูง'],[cite: 1]
-            old_waist: r['รอบเอว'],[cite: 1]
-            screen_id: hasScreened ? `SCR-${r['PID']}` : '',[cite: 1]
-            screen_weight: r['น้ำหนัก'],[cite: 1]
-            screen_height: r['ส่วนสูง'],[cite: 1]
-            screen_waist: r['รอบเอว'],[cite: 1]
-            screen_sbp: r['SBP'],[cite: 1]
-            screen_dbp: r['DBP'],[cite: 1]
-            screen_bsl: r['BSL'],[cite: 1]
+            history_ht: r['ประวัติ HT'],
+            history_dm: r['ประวัติ DM'],
+            old_weight: r['น้ำหนัก'],
+            old_height: r['ส่วนสูง'],
+            old_waist: r['รอบเอว'],
+            screen_id: hasScreened ? `SCR-${r['PID']}` : '',
+            screen_weight: r['น้ำหนัก'],
+            screen_height: r['ส่วนสูง'],
+            screen_waist: r['รอบเอว'],
+            screen_sbp: r['SBP'],
+            screen_dbp: r['DBP'],
+            screen_bsl: r['BSL'],
             screen_smoking: 'ไม่สูบ',
             screen_alcohol: 'ไม่ดื่ม',
             screen_exercise: 'เพียงพอ'
