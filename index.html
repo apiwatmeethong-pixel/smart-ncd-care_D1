@@ -1075,19 +1075,19 @@
     async function fetchVhvPerformanceReportFromServer() { 
       toggleLoaderDisplay(true); 
       try {
-        const { data: records } = await supabase.from('data').select('อสม.ผู้ดูแล, หมู่ที่, วันที่คัดกรอง');[cite: 1]
+        const { data: records } = await supabase.from('data').select('อสม.ผู้ดูแล, หมู่ที่, วันที่คัดกรอง');
         toggleLoaderDisplay(false);
         
         let vhvMap = {};
         if (records) {
           records.forEach(r => {
-            let vhvName = r['อสม.ผู้ดูแล'];[cite: 1]
+            let vhvName = r['อสม.ผู้ดูแล'];
             if(!vhvName || vhvName.trim() === "") return;
             if(!vhvMap[vhvName]) {
-              vhvMap[vhvName] = { name: vhvName, moo: r['หมู่ที่'] || 3, target: 0, done: 0 };[cite: 1]
+              vhvMap[vhvName] = { name: vhvName, moo: r['หมู่ที่'] || 3, target: 0, done: 0 };
             }
             vhvMap[vhvName].target++;
-            if(r['วันที่คัดกรอง'] && r['วันที่คัดกรอง'] !== '-') vhvMap[vhvName].done++;[cite: 1]
+            if(r['วันที่คัดกรอง'] && r['วันที่คัดกรอง'] !== '-') vhvMap[vhvName].done++;
           });
         }
 
@@ -1118,10 +1118,10 @@
     async function fetchManagementTargetsFromServer() { 
       toggleLoaderDisplay(true); 
       try {
-        const { data: records } = await supabase.from('data').select('PID, ชื่อ-นามสกุล, อายุ, บ้านเลขที่, หมู่ที่, อสม.ผู้ดูแล, สถานะพื้นที่');[cite: 1]
+        const { data: records } = await supabase.from('data').select('PID, ชื่อ-นามสกุล, อายุ, บ้านเลขที่, หมู่ที่, อสม.ผู้ดูแล, สถานะพื้นที่');
         toggleLoaderDisplay(false);
         masterTargetMgList = (records || []).map(r => ({
-          pid: r['PID'], name: r['ชื่อ-นามสกุล'], age: r['อายุ'], address: `บ้านเลขที่ ${r['บ้านเลขที่']} ม.${r['หมู่ที่']}`, vhv_name: r['อสม.ผู้ดูแล'], status_area: r['สถานะพื้นที่'] || 'อยู่ในพื้นที่'[cite: 1]
+          pid: r['PID'], name: r['ชื่อ-นามสกุล'], age: r['อายุ'], address: `บ้านเลขที่ ${r['บ้านเลขที่']} ม.${r['หมู่ที่']}`, vhv_name: r['อสม.ผู้ดูแล'], status_area: r['สถานะพื้นที่'] || 'อยู่ในพื้นที่'
         }));
         executeTargetMgTableFilter(false);
       } catch (err) {
@@ -1156,7 +1156,7 @@
 
     async function toggleTargetLocationState(pid, el) { 
       const statusStr = el.checked ? 'อยู่ในพื้นที่' : 'ไม่อยู่ในพื้นที่'; 
-      const { error } = await supabase.from('data').update({ 'สถานะพื้นที่': statusStr }).eq('PID', pid);[cite: 1]
+      const { error } = await supabase.from('data').update({ 'สถานะพื้นที่': statusStr }).eq('PID', pid);
       if(!error) { 
         let item = masterTargetMgList.find(t => t.pid.toString() === pid.toString());
         if(item) item.status_area = statusStr;
@@ -1175,22 +1175,22 @@
     async function fetchUserAccountsFromServer() {
       toggleLoaderDisplay(true);
       try {
-        const { data: users } = await supabase.from('users').select('*').order('รหัสผู้ใช้', { ascending: true });[cite: 1]
+        const { data: users } = await supabase.from('users').select('*').order('รหัสผู้ใช้', { ascending: true });
         toggleLoaderDisplay(false);
         const tbody = document.getElementById('usersTableBody'); if (!tbody) return; tbody.innerHTML = '';
         
         if (users) {
           users.forEach(u => {
             let editBtn = `<button class="btn btn-sm btn-warning fw-bold fs-6 rounded-pill px-3 me-2" onclick="openEditUserModal(${JSON.stringify(u).replace(/"/g, '&quot;')})"><i class="fa-solid fa-user-pen"></i> แก้ไข</button>`;
-            let deleteBtn = `<button class="btn btn-sm btn-danger fw-bold fs-6 rounded-pill px-3" onclick="executeUserCrudAction('DELETE', ${u['รหัสผู้ใช้']})"><i class="fa fa-trash"></i> ลบ</button>`;[cite: 1]
-            tbody.innerHTML += `<tr><td>${u['รหัสผู้ใช้']}</td><td>${u['ชื่อผู้ใช้']}</td><td><code>${u['รหัสผ่าน']}</code></td><td><span class="badge bg-secondary">${u['สิทธิ์ระบบ']}</span></td><td>${u['ชื่อ - นามสกุลจริง']}</td><td>หมู่ ${u['หมู่ที่']}</td><td class="text-center">${editBtn} ${deleteBtn}</td></tr>`;[cite: 1]
+            let deleteBtn = `<button class="btn btn-sm btn-danger fw-bold fs-6 rounded-pill px-3" onclick="executeUserCrudAction('DELETE', ${u['รหัสผู้ใช้']})"><i class="fa fa-trash"></i> ลบ</button>`;
+            tbody.innerHTML += `<tr><td>${u['รหัสผู้ใช้']}</td><td>${u['ชื่อผู้ใช้']}</td><td><code>${u['รหัสผ่าน']}</code></td><td><span class="badge bg-secondary">${u['สิทธิ์ระบบ']}</span></td><td>${u['ชื่อ - นามสกุลจริง']}</td><td>หมู่ ${u['หมู่ที่']}</td><td class="text-center">${editBtn} ${deleteBtn}</td></tr>`;
           });
         }
       } catch (err) { toggleLoaderDisplay(false); }
     }
 
     function openEditUserModal(uObj) {
-      safetySetInputValue('modal_user_id', uObj['รหัสผู้ใช้']); safetySetInputValue('modal_user', uObj['ชื่อผู้ใช้']); safetySetInputValue('modal_pass', uObj['รหัสผ่าน']); safetySetInputValue('modal_fullname', uObj['ชื่อ - นามสกุลจริง']); safetySetInputValue('modal_type', uObj['สิทธิ์ระบบ']); safetySetInputValue('modal_moo', uObj['หมู่ที่']); safetySetInputValue('modal_pid_อสม', uObj['เลขประจำตัว PID อสม.']);[cite: 1]
+      safetySetInputValue('modal_user_id', uObj['รหัสผู้ใช้']); safetySetInputValue('modal_user', uObj['ชื่อผู้ใช้']); safetySetInputValue('modal_pass', uObj['รหัสผ่าน']); safetySetInputValue('modal_fullname', uObj['ชื่อ - นามสกุลจริง']); safetySetInputValue('modal_type', uObj['สิทธิ์ระบบ']); safetySetInputValue('modal_moo', uObj['หมู่ที่']); safetySetInputValue('modal_pid_อสม', uObj['เลขประจำตัว PID อสม.']);
       safetySetTextContent('userModalTitle', "แก้ไขข้อมูลระเบียบบัญชี อสม.");
       if (bootstrapUserModalInstance) bootstrapUserModalInstance.show();
     }
@@ -1233,7 +1233,7 @@
         Swal.fire({ title: 'ยืนยันการลบระเบียบบัญชี อสม. นี้?', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบข้อมูล' }).then(async (result) => {
           if (result.isConfirmed) {
             toggleLoaderDisplay(true);
-            await supabase.from('users').delete().eq('รหัสผู้ใช้', userId);[cite: 1]
+            await supabase.from('users').delete().eq('รหัสผู้ใช้', userId);
             toggleLoaderDisplay(false);
             fetchUserAccountsFromServer();
             Swal.fire('ลบเสร็จสิ้น!', '', 'success');
