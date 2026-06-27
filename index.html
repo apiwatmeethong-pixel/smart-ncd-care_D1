@@ -425,7 +425,7 @@
               </div>
               <div class="card p-3 mb-3 bg-white border-0 shadow-sm rounded-3">
                 <div class="row g-2">
-                  <div class="col-md-7"><label class="form-label fw-bold fs-4">🔍 ค้นหาตามรายชื่อเป้าหมาย</label><input type="text" id="inputSearchTargetMg" class="form-control form-control-lg fs-4 rounded-pill" placeholder="พิมพ์ชื่อ-นามสกุลเป้าหมาย..." oninput="executeTargetMgTableFilter(true)"></div>
+                  <div class="col-md-7"><label class="form-label fw-bold fs-4">🔍 ค้นหาตามรายชื่อเป้าหมาย</label><input type="text" id="inputSearchTargetMg" class="form-control form-control-custom fs-4 rounded-pill" placeholder="พิมพ์ชื่อ-นามสกุลเป้าหมาย..." oninput="executeTargetMgTableFilter(true)"></div>
                   <div class="col-md-5"><label class="form-label fw-bold fs-4">🏡 ตัวกรองสถานะถิ่นพำนักปัจจุบัน</label><select id="selectTargetMgStatus" class="form-select form-select-lg fs-4 rounded-pill" onchange="executeTargetMgTableFilter(true)"><option value="">-- แสดงรายชื่อเป้าหมายทั้งหมด --</option><option value="อยู่ในพื้นที่">อาศัยอยู่ในพื้นที่ความรับผิดชอบ</option><option value="ไม่อยู่ในพื้นที่">ย้ายถิ่นฐาน / ไม่อยู่ในพื้นที่</option></select></div>
                 </div>
               </div>
@@ -512,11 +512,10 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
-    // 📌 บังคับเปลี่ยนชื่อตัวแปรเป็น 'db' ทั้งหมด เพื่อไม่ให้ชนกับคีย์ 'supabase' ใน Global Scope ของเบราว์เซอร์
+    // 📌 ข้อมูลการเชื่อมต่อโปรเจกต์ Supabase ด้วยรหัสพับลิกคีย์ตัวจริง 100% ของผู้ใช้
     const SUPABASE_URL = 'https://ddjcwswzodkdzjfksmqm.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkamN3c3d6b2RrZHpqZmtzbXFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NzM0OTAsImV4cCI6MjA5ODA0OTQ5MH0.lLgqwVakZMJqrj-YuR7sCAlqrMp5pSA-ayUMXuvF3ro'; 
     
-    // เรียกใช้งานฟังก์ชันดึงค่าโดยสลับชื่อตัวแปรปลายทางเป็น db อย่างเด็ดขาด
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let activeVhvSession = { name: '', role: '', vhvId: '', logo: '' };
@@ -599,7 +598,7 @@
       else if (targetView === 'report') { fetchScreeningReportDataFromServer(); }
     }
 
-    // 🌐 ระบบเช็กบัญชีเข้าใช้งานอิงตามคอลัมน์ภาษาไทยจากไฟล์ users
+    // 🌐 ตรวจสอบข้อมูลล็อกอินด้วยคอลัมน์ภาษาอังกฤษตาม Schema ตาราง public.users ตัวใหม่
     async function executeLogin(e) {
       e.preventDefault();
       if (failedLoginAttemptsCount >= 5) {
@@ -612,7 +611,7 @@
       const p = document.getElementById('password').value.trim();
 
       try {
-        const { data: users, error } = await db.from('users').select('*').eq('ชื่อผู้ใช้', u).eq('รหัสผ่าน', p);
+        const { data: users, error } = await db.from('users').select('*').eq('username', u).eq('password', p);
         
         if (error || !users || users.length === 0) {
           toggleLoaderDisplay(false);
@@ -634,15 +633,15 @@
 
         failedLoginAttemptsCount = 0;
         const currentLogo = localStorage.getItem('agencyLogoUrl') || 'https://cdn-icons-png.flaticon.com/512/822/822118.png';
-        activeVhvSession = { name: user['ชื่อ - นามสกุลจริง'], role: user['สิทธิ์ระบบ'], vhvId: user['เลขประจำตัว PID อสม.'], logo: currentLogo };
+        activeVhvSession = { name: user.full_name, role: user.role, vhvId: user.pid_vhv, logo: currentLogo };
         
-        safetySetTextContent('sessionUserName', `คุณ ${user['ชื่อ - นามสกุลจริง']}`);
-        safetySetTextContent('sessionUserRole', `สิทธิ์บัญชี: ${user['สิทธิ์ระบบ']} (รหัส อสม: ${user['เลขประจำตัว PID อสม.']})`);
+        safetySetTextContent('sessionUserName', `คุณ ${user.full_name}`);
+        safetySetTextContent('sessionUserRole', `สิทธิ์บัญชี: ${user.role} (รหัส อสม: ${user.pid_vhv || '-'})`);
         
-        if (user['สิทธิ์ระบบ'] === 'admin') {
+        if (user.role === 'admin') {
           document.querySelectorAll('.admin-staff-only').forEach(el => el.classList.remove('d-none'));
           document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('d-none')); 
-        } else if (user['สิทธิ์ระบบ'] === 'staff') {
+        } else if (user.role === 'staff') {
           document.querySelectorAll('.admin-staff-only').forEach(el => el.classList.remove('d-none'));
           document.querySelectorAll('.admin-only').forEach(el => el.classList.add('d-none')); 
         } else {
@@ -653,7 +652,7 @@
         toggleLoaderDisplay(false);
         document.getElementById('loginSection').classList.add('d-none');
         document.getElementById('mainInterface').classList.remove('d-none');
-        Swal.fire({ icon: 'success', title: 'ยินดีต้อนรับเข้าใช้งาน', text: `เจ้าหน้าที่ระบบ: ${user['ชื่อ - นามสกุลจริง']}`, timer: 1500, showConfirmButton: false });
+        Swal.fire({ icon: 'success', title: 'ยินดีต้อนรับเข้าใช้งาน', text: `เจ้าหน้าที่ระบบ: ${user.full_name}`, timer: 1500, showConfirmButton: false });
         changeViewWindow('dash');
 
       } catch (err) {
@@ -721,12 +720,12 @@
       renderReportTable(); 
     }
 
-    // 📊 ประมวลผลแดชบอร์ดสถิติตามหัวข้อตารางภาษาไทยในไฟล์ data
+    // 📊 โหลดข้อมูลประมวลผลสรุปบนหน้าแดชบอร์ดตามโครงสร้างภาษาอังกฤษของตาราง public.data
     async function fetchDashboardCountsFromServer() {
       try {
         let query = db.from('data').select('*');
         if (activeVhvSession.role === 'user') {
-          query = query.eq('PID อสม.', activeVhvSession.vhvId);
+          query = query.eq('vhv_pid', activeVhvSession.vhvId);
         }
         const { data: records } = await query;
         if (!records) return;
@@ -738,14 +737,14 @@
         const tbody = document.getElementById('dashboardSummaryTableBody'); if (!tbody) return; tbody.innerHTML = '';
 
         records.forEach(item => {
-          let hasScreened = (item['วันที่คัดกรอง'] && item['วันที่คัดกรอง'] !== '-');
+          let hasScreened = (item.screening_date && item.screening_date !== '-');
           if (hasScreened) countScreened++;
 
           let ncdStatusStr = "ยังไม่ได้คัดกรอง";
           let bClass = "bg-secondary";
           
-          let ht = item['ผลแปล HT'] || '';
-          let dm = item['ผลแปล DM'] || '';
+          let ht = item.interpretation_ht || '';
+          let dm = item.interpretation_dm || '';
 
           if (ht.includes('สงสัย') || ht.includes('Stage') || dm.includes('สงสัย')) {
             countAlert++;
@@ -767,8 +766,8 @@
 
           if (hasScreened) {
             const tr = document.createElement('tr');
-            let calculatedBmi = (item['น้ำหนัก'] / Math.pow(item['ส่วนสูง'] / 100, 2)).toFixed(1);
-            tr.innerHTML = `<td data-label="ชื่อ - นามสกุล">${item['ชื่อ-นามสกุล']}</td><td data-label="สรุปสถานะกลุ่ม"><span class="badge ${bClass} fs-6">${ncdStatusStr}</span></td><td data-label="แปลดัชนีมวลกาย" class="text-primary">${calculatedBmi}</td><td data-label="แปลความดัน (HT)">${item['ผลแปล HT'] || '-'}</td><td data-label="แปลน้ำตาล (DM)">${item['ผลแปล DM'] || '-'}</td><td data-label="ประเมินหัวใจ (CVD)">เสี่ยงน้อย</td>`;
+            let calculatedBmi = (item.weight / Math.pow(item.height / 100, 2)).toFixed(1);
+            tr.innerHTML = `<td data-label="ชื่อ - นามสกุล">${item.full_name}</td><td data-label="สรุปสถานะกลุ่ม"><span class="badge ${bClass} fs-6">${ncdStatusStr}</span></td><td data-label="แปลดัชนีมวลกาย" class="text-primary">${calculatedBmi}</td><td data-label="แปลความดัน (HT)">${item.interpretation_ht || '-'}</td><td data-label="แปลน้ำตาล (DM)">${item.interpretation_dm || '-'}</td><td data-label="ประเมินหัวใจ (CVD)">เสี่ยงน้อย</td>`;
             tbody.appendChild(tr);
           }
         });
@@ -797,48 +796,48 @@
       }
     }
 
-    // 👥 รายชื่อกลุ่มเป้าหมายอิงตามหัวข้อภาษาไทยจากไฟล์ data
+    // 👥 ดึงรายชื่อประชากรในการดูแล อิงคอลัมน์ภาษาอังกฤษของตาราง public.data
     async function fetchPopulationListFromServer() {
       toggleLoaderDisplay(true);
       try {
         let query = db.from('data').select('*');
         if (activeVhvSession.role === 'user') {
-          query = query.eq('PID อสม.', activeVhvSession.vhvId);
+          query = query.eq('vhv_pid', activeVhvSession.vhvId);
         }
         const { data: records, error } = await query;
         toggleLoaderDisplay(false);
         if (error) throw error;
 
         populationDataset = (records || []).map(r => {
-          let hasScreened = (r['วันที่คัดกรอง'] && r['วันที่คัดกรอง'] !== '-');
+          let hasScreened = (r.screening_date && r.screening_date !== '-');
           let statusStr = "ยังไม่ได้คัดกรองปีนี้";
           if (hasScreened) {
-            let ht = r['ผลแปล HT'] || '';
-            let dm = r['ผลแปล DM'] || '';
+            let ht = r.interpretation_ht || '';
+            let dm = r.interpretation_dm || '';
             if (ht.includes('สงสัย') || dm.includes('สงสัย')) statusStr = "กลุ่มสงสัยป่วย (สีแดง)";
             else if (ht.includes('เสี่ยง') || ht.includes('สูง') || dm.includes('เสี่ยง')) statusStr = "กลุ่มเสี่ยง (สีเหลือง)";
             else statusStr = "กลุ่มปกติ (สีเขียว)";
           }
 
           return {
-            pid: r['PID'],
-            name: r['ชื่อ-นามสกุล'],
-            age: r['อายุ'],
-            gender: r['เพศ'],
-            address: `บ้านเลขที่ ${r['บ้านเลขที่'] || '-'} ม.${r['หมู่ที่']} โทกหัวช้าง`,
+            pid: r.pid,
+            name: r.full_name,
+            age: r.age,
+            gender: r.gender,
+            address: `บ้านเลขที่ ${r.house_no || '-'} ม.${r.moo} โทกหัวช้าง`,
             last_screening_status: statusStr,
-            history_ht: r['ประวัติ HT'],
-            history_dm: r['ประวัติ DM'],
-            old_weight: r['น้ำหนัก'],
-            old_height: r['ส่วนสูง'],
-            old_waist: r['รอบเอว'],
-            screen_id: hasScreened ? `SCR-${r['PID']}` : '',
-            screen_weight: r['น้ำหนัก'],
-            screen_height: r['ส่วนสูง'],
-            screen_waist: r['รอบเอว'],
-            screen_sbp: r['SBP'],
-            screen_dbp: r['DBP'],
-            screen_bsl: r['BSL'],
+            history_ht: r.history_ht,
+            history_dm: r.history_dm,
+            old_weight: r.weight,
+            old_height: r.height,
+            old_waist: r.waist,
+            screen_id: hasScreened ? `SCR-${r.pid}` : '',
+            screen_weight: r.weight,
+            screen_height: r.height,
+            screen_waist: r.waist,
+            screen_sbp: r.sbp,
+            screen_dbp: r.dbp,
+            screen_bsl: r.bsl,
             screen_smoking: 'ไม่สูบ',
             screen_alcohol: 'ไม่ดื่ม',
             screen_exercise: 'เพียงพอ'
@@ -998,7 +997,7 @@
       else if (cat === 'ex' && exLow) document.getElementById('panel_freq_ex').classList.toggle('d-none', !exLow.checked);
     }
 
-    // 💾 บันทึกข้อมูลคัดกรอง และ อัปเดตตารางหลัก data
+    // 💾 บันทึกสถิติคัดกรอง อัปเดตตาราง public.screening และเขียนทับสัญญาณชีพเข้าตาราง public.data ฟิลด์ภาษาอังกฤษ
     async function submitFormScreeningData(e) {
       e.preventDefault();
       const wRaw = document.getElementById('in_weight').value;
@@ -1044,18 +1043,17 @@
       try {
         await db.from('screening').insert([screenPayload]);
 
-        // อัปเดตข้อมูลเข้าคอลัมน์ภาษาไทย
         await db.from('data').update({
-          'น้ำหนัก': parseFloat(wRaw),
-          'ส่วนสูง': parseFloat(hRaw),
-          'รอบเอว': parseFloat(waistRaw),
-          'SBP': parseInt(sbpRaw),
-          'DBP': parseInt(dbpRaw),
-          'BSL': parseInt(bslRaw),
-          'วันที่คัดกรอง': new Date().toISOString().split('T')[0],
-          'ผลแปล HT': document.getElementById('rt-bp').innerText,
-          'ผลแปล DM': document.getElementById('rt-bsl').innerText
-        }).eq('PID', pidVal);
+          weight: parseFloat(wRaw),
+          height: parseFloat(hRaw),
+          waist: parseFloat(waistRaw),
+          sbp: parseInt(sbpRaw),
+          dbp: parseInt(dbpRaw),
+          bsl: parseInt(bslRaw),
+          screening_date: new Date().toISOString().split('T')[0],
+          interpretation_ht: document.getElementById('rt-bp').innerText,
+          interpretation_dm: document.getElementById('rt-bsl').innerText
+        }).eq('pid', pidVal);
 
         toggleLoaderDisplay(false);
         Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จเข้า Supabase', timer: 1500, showConfirmButton: false });
@@ -1073,23 +1071,23 @@
       });
     }
 
-    // 📈 คำนวณสรุปผลงานรายบุคคลตามคอลัมน์ภาษาไทย 'อสม.ผู้ดูแล'
+    // 📈 ตรวจจับสรุปรายงานความคืบหน้าการทำงาน อสม. รายบุคคล ด้วยคอลัมน์ภาษาอังกฤษของ public.data
     async function fetchVhvPerformanceReportFromServer() { 
       toggleLoaderDisplay(true); 
       try {
-        const { data: records } = await db.from('data').select('อสม.ผู้ดูแล, หมู่ที่, วันที่คัดกรอง');
+        const { data: records } = await db.from('data').select('vhv_name, moo, screening_date');
         toggleLoaderDisplay(false);
         
         let vhvMap = {};
         if (records) {
           records.forEach(r => {
-            let vhvName = r['อสม.ผู้ดูแล'];
+            let vhvName = r.vhv_name;
             if(!vhvName || vhvName.trim() === "") return;
             if(!vhvMap[vhvName]) {
-              vhvMap[vhvName] = { name: vhvName, moo: r['หมู่ที่'] || 3, target: 0, done: 0 };
+              vhvMap[vhvName] = { name: vhvName, moo: r.moo || 3, target: 0, done: 0 };
             }
             vhvMap[vhvName].target++;
-            if(r['วันที่คัดกรอง'] && r['วันที่คัดกรอง'] !== '-') vhvMap[vhvName].done++;
+            if(r.screening_date && r.screening_date !== '-') vhvMap[vhvName].done++;
           });
         }
 
@@ -1116,14 +1114,14 @@
       compileSmartPaginationLinks(perfCurrentPage, masterVhvPerformanceList.length, 'paginationPerfWrapper', 'shiftPerfPage');
     }
 
-    // 🏡 บริหารที่อยู่ประชากรตามฟิลด์ภาษาไทย
+    // 🏡 บริหารและปรับแก้ถิ่นพำนักปัจจุบันประชากรเป้าหมายตาราง public.data
     async function fetchManagementTargetsFromServer() { 
       toggleLoaderDisplay(true); 
       try {
-        const { data: records } = await db.from('data').select('PID, ชื่อ-นามสกุล, อายุ, บ้านเลขที่, หมู่ที่, อสม.ผู้ดูแล, สถานะพื้นที่');
+        const { data: records } = await db.from('data').select('pid, full_name, age, house_no, moo, vhv_name, area_status');
         toggleLoaderDisplay(false);
         masterTargetMgList = (records || []).map(r => ({
-          pid: r['PID'], name: r['ชื่อ-นามสกุล'], age: r['อายุ'], address: `บ้านเลขที่ ${r['บ้านเลขที่']} ม.${r['หมู่ที่']}`, vhv_name: r['อสม.ผู้ดูแล'], status_area: r['สถานะพื้นที่'] || 'อยู่ในพื้นที่'
+          pid: r.pid, name: r.full_name, age: r.age, address: `บ้านเลขที่ ${r.house_no || '-'} ม.${r.moo}`, vhv_name: r.vhv_name, status_area: r.area_status || 'อยู่ในพื้นที่'
         }));
         executeTargetMgTableFilter(false);
       } catch (err) {
@@ -1150,7 +1148,7 @@
       slice.forEach(item => {
         const isChecked = item.status_area !== 'ไม่อยู่ในพื้นที่' ? 'checked' : ''; 
         const statusLabel = item.status_area !== 'ไม่อยู่ในพื้นที่' ? '<span class="text-success fw-bold"><i class="fa fa-home"></i> อยู่ในพื้นที่</span>' : '<span class="text-danger fw-bold"><i class="fa fa-plane-departure"></i> ไม่อยู่ในพื้นที่</span>';
-        tbody.appendChild(document.createElement('tr')).innerHTML = `<td>${item.name}</td><td>${item.age} ปี</td><td class="small text-muted">${item.address}</td><td>${item.vhv_name}</td><td class="text-center print-hide"><div class="form-check form-switch d-inline-block"><input class="form-check-input" type="checkbox" ${isChecked} onchange="toggleTargetLocationState('${item.pid}', this)"></div><div>${statusLabel}</div></td>`;
+        tbody.appendChild(document.createElement('tr')).innerHTML = `<td>${item.name}</td><td>${item.age} ปี</td><td class="small text-muted">${item.address}</td><td>${item.vhv_name || '-'}</td><td class="text-center print-hide"><div class="form-check form-switch d-inline-block"><input class="form-check-input" type="checkbox" ${isChecked} onchange="toggleTargetLocationState('${item.pid}', this)"></div><div>${statusLabel}</div></td>`;
       });
       safetySetTextContent('labelTgtMgPaginationInfo', `แถวเป้าหมายที่ ${pStart+1} ถึง ${pEnd} จากทั้งหมด ${filteredTargetMgList.length} คน`); 
       compileSmartPaginationLinks(tgtMgCurrentPage, filteredTargetMgList.length, 'paginationTgtMgWrapper', 'shiftTgtMgPage');
@@ -1158,7 +1156,7 @@
 
     async function toggleTargetLocationState(pid, el) { 
       const statusStr = el.checked ? 'อยู่ในพื้นที่' : 'ไม่อยู่ในพื้นที่'; 
-      const { error } = await db.from('data').update({ 'สถานะพื้นที่': statusStr }).eq('PID', pid);
+      const { error } = await db.from('data').update({ area_status: statusStr }).eq('pid', pid);
       if(!error) { 
         let item = masterTargetMgList.find(t => t.pid.toString() === pid.toString());
         if(item) item.status_area = statusStr;
@@ -1173,26 +1171,39 @@
       Swal.fire({ icon: 'success', title: 'อัปเดตโลโก้ประจำหน่วยงานสำเร็จ' });
     }
 
-    // 🔑 จัดการบัญชีผู้ใช้ อสม. อิงตามคอลัมน์ภาษาไทยจาก users
+    // 🔑 จัดการบัญชีรายชื่อระบบควบคุมสิทธิ์ผู้ใช้ อสม. อิงคอลัมน์ภาษาอังกฤษตาราง public.users
     async function fetchUserAccountsFromServer() {
       toggleLoaderDisplay(true);
       try {
-        const { data: users } = await db.from('users').select('*').order('รหัสผู้ใช้', { ascending: true });
+        const { data: users } = await db.from('users').select('*').order('id', { ascending: true });
         toggleLoaderDisplay(false);
         const tbody = document.getElementById('usersTableBody'); if (!tbody) return; tbody.innerHTML = '';
         
         if (users) {
           users.forEach(u => {
             let editBtn = `<button class="btn btn-sm btn-warning fw-bold fs-6 rounded-pill px-3 me-2" onclick="openEditUserModal(${JSON.stringify(u).replace(/"/g, '&quot;')})"><i class="fa-solid fa-user-pen"></i> แก้ไข</button>`;
-            let deleteBtn = `<button class="btn btn-sm btn-danger fw-bold fs-6 rounded-pill px-3" onclick="executeUserCrudAction('DELETE', ${u['รหัสผู้ใช้']})"><i class="fa fa-trash"></i> ลบ</button>`;
-            tbody.innerHTML += `<tr><td>${u['รหัสผู้ใช้']}</td><td>${u['ชื่อผู้ใช้']}</td><td><code>${u['รหัสผ่าน']}</code></td><td><span class="badge bg-secondary">${u['สิทธิ์ระบบ']}</span></td><td>${u['ชื่อ - นามสกุลจริง']}</td><td>หมู่ ${u['หมู่ที่']}</td><td class="text-center">${editBtn} ${deleteBtn}</td></tr>`;
+            let deleteBtn = `<button class="btn btn-sm btn-danger fw-bold fs-6 rounded-pill px-3" onclick="executeUserCrudAction('DELETE', ${u.id})"><i class="fa fa-trash"></i> ลบ</button>`;
+            tbody.innerHTML += `<tr><td>${u.id}</td><td>${u.username}</td><td><code>${u.password}</code></td><td><span class="badge bg-secondary">${u.role}</span></td><td>${u.full_name}</td><td>หมู่ ${u.moo}</td><td class="text-center">${editBtn} ${deleteBtn}</td></tr>`;
           });
         }
       } catch (err) { toggleLoaderDisplay(false); }
     }
 
+    function openAddUserModal() {
+      const form = document.getElementById('userActionForm'); if(form) form.reset();
+      safetySetInputValue('modal_user_id', "");
+      safetySetTextContent('userModalTitle', "เพิ่มบัญชีรายชื่อ อสม. ใหม่เข้าสู่ส่วนกลาง");
+      if (bootstrapUserModalInstance) bootstrapUserModalInstance.show();
+    }
+
     function openEditUserModal(uObj) {
-      safetySetInputValue('modal_user_id', uObj['รหัสผู้ใช้']); safetySetInputValue('modal_user', uObj['ชื่อผู้ใช้']); safetySetInputValue('modal_pass', uObj['รหัสผ่าน']); safetySetInputValue('modal_fullname', uObj['ชื่อ - นามสกุลจริง']); safetySetInputValue('modal_type', uObj['สิทธิ์ระบบ']); safetySetInputValue('modal_moo', uObj['หมู่ที่']); safetySetInputValue('modal_pid_อสม', uObj['เลขประจำตัว PID อสม.']);
+      safetySetInputValue('modal_user_id', uObj.id); 
+      safetySetInputValue('modal_user', uObj.username); 
+      safetySetInputValue('modal_pass', uObj.password); 
+      safetySetInputValue('modal_fullname', uObj.full_name); 
+      safetySetInputValue('modal_type', uObj.role); 
+      safetySetInputValue('modal_moo', uObj.moo); 
+      safetySetInputValue('modal_pid_อสม', uObj.pid_vhv);
       safetySetTextContent('userModalTitle', "แก้ไขข้อมูลระเบียบบัญชี อสม.");
       if (bootstrapUserModalInstance) bootstrapUserModalInstance.show();
     }
@@ -1201,24 +1212,24 @@
       e.preventDefault(); 
       const uid = document.getElementById('modal_user_id').value; 
       const payload = {
-        'ชื่อผู้ใช้': document.getElementById('modal_user').value.trim(),
-        'รหัสผ่าน': document.getElementById('modal_pass').value.trim(),
-        'ชื่อ - นามสกุลจริง': document.getElementById('modal_fullname').value.trim(),
-        'สิทธิ์ระบบ': document.getElementById('modal_type').value,
-        'หมู่ที่': parseInt(document.getElementById('modal_moo').value),
-        'เลขประจำตัว PID อสม.': document.getElementById('modal_pid_อสม').value.trim(),
-        'ชุมชน': 'ชุมชนโทกหัวช้าง'
+        username: document.getElementById('modal_user').value.trim(),
+        password: document.getElementById('modal_pass').value.trim(),
+        full_name: document.getElementById('modal_fullname').value.trim(),
+        role: document.getElementById('modal_type').value,
+        moo: parseInt(document.getElementById('modal_moo').value) || 0,
+        pid_vhv: document.getElementById('modal_pid_อสม').value.trim(),
+        community: 'ชุมชนโทกหัวช้าง'
       };
       
       toggleLoaderDisplay(true);
       try {
         if (uid === "") {
-          const { data: allUsers } = await db.from('users').select('รหัสผู้ใช้');
-          const maxId = allUsers.reduce((max, u) => u['รหัสผู้ใช้'] > max ? u['รหัสผู้ใช้'] : max, 0);
-          payload['รหัสผู้ใช้'] = maxId + 1;
+          const { data: allUsers } = await db.from('users').select('id');
+          const maxId = allUsers ? allUsers.reduce((max, u) => u.id > max ? u.id : max, 0) : 0;
+          payload.id = maxId + 1;
           await db.from('users').insert([payload]);
         } else {
-          await db.from('users').update(payload).eq('รหัสผู้ใช้', uid);
+          await db.from('users').update(payload).eq('id', uid);
         }
         toggleLoaderDisplay(false);
         if (bootstrapUserModalInstance) bootstrapUserModalInstance.hide();
@@ -1235,7 +1246,7 @@
         Swal.fire({ title: 'ยืนยันการลบระเบียบบัญชี อสม. นี้?', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบข้อมูล' }).then(async (result) => {
           if (result.isConfirmed) {
             toggleLoaderDisplay(true);
-            await db.from('users').delete().eq('รหัสผู้ใช้', userId);
+            await db.from('users').delete().eq('id', userId);
             toggleLoaderDisplay(false);
             fetchUserAccountsFromServer();
             Swal.fire('ลบเสร็จสิ้น!', '', 'success');
@@ -1301,6 +1312,11 @@
 
     function executePrintTargetMgPdf() { 
       window.print();
+    }
+
+    // 📥 ฟังก์ชันจำลองนำเข้า CSV สำหรับ Admin (เคลียร์ฐานข้อมูล)
+    function executeProcessingCsvUploadToServer() {
+      Swal.fire({ title: 'ฟังก์ชันนี้ถูกระงับชั่วคราว', text: 'กรุณาติดต่อผู้พัฒนาผ่านช่องทางหลังบ้านเพื่อเปิดใช้งานระบบเขียนทับข้อมูลดิบ', icon: 'info' });
     }
   </script>
 </body>
