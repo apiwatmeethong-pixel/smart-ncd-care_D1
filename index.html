@@ -512,15 +512,19 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
-  // 📌 ตั้งค่าตัวแปรหลักสำหรับเชื่อมต่อ Supabase (ใช้เกราะป้องกันประกาศซ้ำ)
-    if (typeof supabase === 'undefined') {
+    // 📌 วิธีแก้ปัญหาประกาศซ้ำด้วย Global Object
+    (function() {
         const SUPABASE_URL = 'https://ddjcwswzodkdzjfksmqm.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_S8BweoAVXjzTtSfSdXgjYQ_sTkSQ1Yr';
-        window.supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        console.log("Supabase Client initialized successfully.");
-    } else {
-        console.log("Supabase Client already exists, skipping initialization.");
-    }
+        
+        if (!window.supabase) {
+            window.supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            console.log("Supabase initialized globally.");
+        }
+    })();
+    
+    // ตั้งค่าตัวแปรใช้ภายในสคริปต์นี้
+    const supabase = window.supabase;
 
     let activeVhvSession = { name: '', role: '', vhvId: '', logo: '' };
     let masterHealthRules = []; 
