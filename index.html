@@ -512,19 +512,12 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
-    // 📌 วิธีแก้ปัญหาประกาศซ้ำด้วย Global Object
-    (function() {
-        const SUPABASE_URL = 'https://ddjcwswzodkdzjfksmqm.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_S8BweoAVXjzTtSfSdXgjYQ_sTkSQ1Yr';
-        
-        if (!window.supabase) {
-            window.supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            console.log("Supabase initialized globally.");
-        }
-    })();
+    // 📌 แก้ไขเรื่อง Identifier ประกาศซ้ำโดยใช้ตัวแปรอื่นเรียกใช้งานแทนตามมาตรฐานสิทธิ์
+    const SUPABASE_URL = 'https://ddjcwswzodkdzjfksmqm.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_S8BweoAVXjzTtSfSdXgjYQ_sTkSQ1Yr';
     
-    // ตั้งค่าตัวแปรใช้ภายในสคริปต์นี้
-    const supabase = window.supabase;
+    // ดึงฟังก์ชัน createClient ออกมาจาก Global Object ของตัวแปรหลักที่มีอยู่แล้ว
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let activeVhvSession = { name: '', role: '', vhvId: '', logo: '' };
     let masterHealthRules = []; 
@@ -619,7 +612,7 @@
       const p = document.getElementById('password').value.trim();
 
       try {
-        const { data: users, error } = await supabase.from('users').select('*').eq('ชื่อผู้ใช้', u).eq('รหัสผ่าน', p);
+        const { data: users, error } = await sb.from('users').select('*').eq('ชื่อผู้ใช้', u).eq('รหัสผ่าน', p);
         
         if (error || !users || users.length === 0) {
           toggleLoaderDisplay(false);
@@ -636,7 +629,7 @@
         }
 
         const user = users[0];
-        const { data: rules } = await supabase.from('rules').select('*');
+        const { data: rules } = await sb.from('rules').select('*');
         masterHealthRules = rules || [];
 
         failedLoginAttemptsCount = 0;
@@ -731,7 +724,7 @@
     // 📊 ประมวลผลแดชบอร์ดสถิติตามหัวข้อตารางภาษาไทยในไฟล์ data
     async function fetchDashboardCountsFromServer() {
       try {
-        let query = supabase.from('data').select('*');
+        let query = sb.from('data').select('*');
         if (activeVhvSession.role === 'user') {
           query = query.eq('PID อสม.', activeVhvSession.vhvId);
         }
@@ -780,7 +773,7 @@
           }
         });
 
-        const { data: screenLogs } = await supabase.from('screening').select('smoking, alcohol');
+        const { data: screenLogs } = await sb.from('screening').select('smoking, alcohol');
         if (screenLogs) {
           screenLogs.forEach(s => {
             if (s.smoking && s.smoking.includes('สูบ') && !s.smoking.includes('ไม่สูบ')) totalSmoker++;
@@ -808,7 +801,7 @@
     async function fetchPopulationListFromServer() {
       toggleLoaderDisplay(true);
       try {
-        let query = supabase.from('data').select('*');
+        let query = sb.from('data').select('*');
         if (activeVhvSession.role === 'user') {
           query = query.eq('PID อสม.', activeVhvSession.vhvId);
         }
@@ -1049,10 +1042,10 @@
       };
 
       try {
-        await supabase.from('screening').insert([screenPayload]);
+        await sb.from('screening').insert([screenPayload]);
 
         // อัปเดตข้อมูลเข้าคอลัมน์ภาษาไทย
-        await supabase.from('data').update({
+        await sb.from('data').update({
           'น้ำหนัก': parseFloat(wRaw),
           'ส่วนสูง': parseFloat(hRaw),
           'รอบเอว': parseFloat(waistRaw),
@@ -1084,7 +1077,7 @@
     async function fetchVhvPerformanceReportFromServer() { 
       toggleLoaderDisplay(true); 
       try {
-        const { data: records } = await supabase.from('data').select('อสม.ผู้ดูแล, หมู่ที่, วันที่คัดกรอง');
+        const { data: records } = await sb.from('data').select('อสม.ผู้ดูแล, หมู่ที่, วันที่คัดกรอง');
         toggleLoaderDisplay(false);
         
         let vhvMap = {};
@@ -1127,7 +1120,7 @@
     async function fetchManagementTargetsFromServer() { 
       toggleLoaderDisplay(true); 
       try {
-        const { data: records } = await supabase.from('data').select('PID, ชื่อ-นามสกุล, อายุ, บ้านเลขที่, หมู่ที่, อสม.ผู้ดูแล, สถานะพื้นที่');
+        const { data: records } = await sb.from('data').select('PID, ชื่อ-นามสกุล, อายุ, บ้านเลขที่, หมู่ที่, อสม.ผู้ดูแล, สถานะพื้นที่');
         toggleLoaderDisplay(false);
         masterTargetMgList = (records || []).map(r => ({
           pid: r['PID'], name: r['ชื่อ-นามสกุล'], age: r['อายุ'], address: `บ้านเลขที่ ${r['บ้านเลขที่']} ม.${r['หมู่ที่']}`, vhv_name: r['อสม.ผู้ดูแล'], status_area: r['สถานะพื้นที่'] || 'อยู่ในพื้นที่'
@@ -1165,7 +1158,7 @@
 
     async function toggleTargetLocationState(pid, el) { 
       const statusStr = el.checked ? 'อยู่ในพื้นที่' : 'ไม่อยู่ในพื้นที่'; 
-      const { error } = await supabase.from('data').update({ 'สถานะพื้นที่': statusStr }).eq('PID', pid);
+      const { error } = await sb.from('data').update({ 'สถานะพื้นที่': statusStr }).eq('PID', pid);
       if(!error) { 
         let item = masterTargetMgList.find(t => t.pid.toString() === pid.toString());
         if(item) item.status_area = statusStr;
@@ -1184,7 +1177,7 @@
     async function fetchUserAccountsFromServer() {
       toggleLoaderDisplay(true);
       try {
-        const { data: users } = await supabase.from('users').select('*').order('รหัสผู้ใช้', { ascending: true });
+        const { data: users } = await sb.from('users').select('*').order('รหัสผู้ใช้', { ascending: true });
         toggleLoaderDisplay(false);
         const tbody = document.getElementById('usersTableBody'); if (!tbody) return; tbody.innerHTML = '';
         
@@ -1220,12 +1213,12 @@
       toggleLoaderDisplay(true);
       try {
         if (uid === "") {
-          const { data: allUsers } = await supabase.from('users').select('รหัสผู้ใช้');
+          const { data: allUsers } = await sb.from('users').select('รหัสผู้ใช้');
           const maxId = allUsers.reduce((max, u) => u['รหัสผู้ใช้'] > max ? u['รหัสผู้ใช้'] : max, 0);
           payload['รหัสผู้ใช้'] = maxId + 1;
-          await supabase.from('users').insert([payload]);
+          await sb.from('users').insert([payload]);
         } else {
-          await supabase.from('users').update(payload).eq('รหัสผู้ใช้', uid);
+          await sb.from('users').update(payload).eq('รหัสผู้ใช้', uid);
         }
         toggleLoaderDisplay(false);
         if (bootstrapUserModalInstance) bootstrapUserModalInstance.hide();
@@ -1242,7 +1235,7 @@
         Swal.fire({ title: 'ยืนยันการลบระเบียบบัญชี อสม. นี้?', icon: 'warning', showCancelButton: true, confirmButtonText: 'ลบข้อมูล' }).then(async (result) => {
           if (result.isConfirmed) {
             toggleLoaderDisplay(true);
-            await supabase.from('users').delete().eq('รหัสผู้ใช้', userId);
+            await sb.from('users').delete().eq('รหัสผู้ใช้', userId);
             toggleLoaderDisplay(false);
             fetchUserAccountsFromServer();
             Swal.fire('ลบเสร็จสิ้น!', '', 'success');
@@ -1254,7 +1247,7 @@
     async function fetchScreeningReportDataFromServer() {
       toggleLoaderDisplay(true);
       try {
-        const { data: records } = await supabase.from('screening').select('*');
+        const { data: records } = await sb.from('screening').select('*');
         toggleLoaderDisplay(false);
         masterReportList = records || [];
         renderReportTable();
