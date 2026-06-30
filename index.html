@@ -1401,8 +1401,59 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
       return parsedArray;
     }
 
-    // 📥 1 & 2. ⚡ ฟังก์ชันนำเข้า CSV สู่ Supabase (สลับสิทธิ์ระหว่างตารางประชากร หรือบัญชีผู้ใช้งาน อสม.)
- async function executeProcessingCsvUploadToServer() {
+    // 🔍 1. ฟังก์ชันตัวช่วยดึงค่าจาก CSV แบบอัจฉริยะ (ไม่สนใจพิมพ์เล็ก-ใหญ่ / รองรับทั้งไทย-อังกฤษ)
+function getCsvValueRobust(rowObj, acceptableKeys) {
+  const rowKeys = Object.keys(rowObj);
+  for (let key of rowKeys) {
+    const cleanKey = key.trim().toLowerCase();
+    for (let target of acceptableKeys) {
+      const cleanTarget = target.toLowerCase();
+      // แมปถ้าชื่อตรงกัน หรือชื่อส่วนใดส่วนหนึ่งตรงกัน (เช่น weight หรือ น้ำหนัก)
+      if (cleanKey === cleanTarget || cleanKey.includes(cleanTarget)) {
+        return rowObj[key];
+      }
+    }
+  }
+  return undefined;
+}
+
+// 📅 2. ฟังก์ชันแปลงวันที่อัจฉริยะ ดักจับกับดัก Excel (รองรับ 19/11/2025 และ 2025-11-19)
+function parseDateRobust(rawDate) {
+  if (!rawDate || rawDate === '-' || rawDate.trim() === '') return null;
+  let cleanDate = rawDate.trim();
+  
+  // ถ้าเป็นรูปแบบ YYYY-MM-DD อยู่แล้ว ให้ส่งออกไปได้เลย
+  if (/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) return cleanDate;
+  
+  // แยกส่วนประกอบด้วย / หรือ -
+  const parts = cleanDate.split(/[\/\-]/);
+  if (parts.length === 3) {
+    // กรณีปีขึ้นก่อน YYYY/MM/DD
+    if (parts[0].length === 4) {
+      let year = parseInt(parts[0]);
+      if (year > 2500) year -= 543;
+      return `${year}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+    }
+    // กรณีวันขึ้นก่อน DD/MM/YYYY
+    if (parts[2].length === 4 || parts[2].length === 2) {
+      let year = parseInt(parts[2]);
+      if (parts[2].length === 2) year += 2000;
+      if (year > 2500) year -= 543;
+      return `${year}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    }
+  }
+  return null;
+}
+
+// 🔢 3. ฟังก์ชันแปลงตัวเลขนิรภัย ป้องกันค่า NaN
+function parseNumberRobust(value, isFloat = false) {
+  if (value === undefined || value === null || value === '-' || value.toString().trim() === '') return null;
+  const parsed = isFloat ? parseFloat(value) : parseInt(value);
+  return isNaN(parsed) ? null : parsed;
+}
+
+// 📥 4. ฟังก์ชันหลักนำเข้าข้อมูลอัปเกรดประสิทธิภาพสูงสุด
+async function executeProcessingCsvUploadToServer() {
   const fileInput = document.getElementById('inputCsvTargetFile');
   if (!fileInput || fileInput.files.length === 0) { 
     Swal.fire({ icon: 'warning', title: 'ยังไม่ได้เลือกไฟล์', text: 'กรุณาเลือกไฟล์เอกสารในรูปแบบนามสกุล .csv ก่อนกดยืนยันคำสั่งครับ' }); return; 
@@ -1421,17 +1472,20 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
 
       if (selectedCsvType === 'users') {
         const typedData = jsonBatchArray
-          .map(u => ({
-            id: parseInt(u.id), 
-            username: u.username || u['ชื่อผู้ใช้'] || u['เบอร์โทร'], 
-            password: u.password || u['รหัสผ่าน'], 
-            full_name: u.full_name || u['ชื่อ-นามสกุล'] || u['ชื่อจริง'],
-            role: u.role || u['สิทธิ์'] || 'user', 
-            moo: parseInt(u.moo || u['หมู่ที่']) || 0, 
-            pid_vhv: u.pid_vhv || u['PID อสม.'] || '', 
-            community: u.community || u['ชุมชน'] || 'ชุมชนโทกหัวช้าง'
-          }))
-          .filter(u => !isNaN(u.id));
+          .map(u => {
+            const idVal = parseNumberRobust(getCsvValueRobust(u, ['id', 'ลำดับ']));
+            return {
+              id: idVal, 
+              username: getCsvValueRobust(u, ['username', 'ชื่อผู้ใช้', 'เบอร์โทร']), 
+              password: getCsvValueRobust(u, ['password', 'รหัสผ่าน']), 
+              full_name: getCsvValueRobust(u, ['full_name', 'ชื่อ-นามสกุล', 'ชื่อจริง']),
+              role: getCsvValueRobust(u, ['role', 'sสิทธิ์']) || 'user', 
+              moo: parseNumberRobust(getCsvValueRobust(u, ['moo', 'หมู่ที่'])) || 0, 
+              pid_vhv: getCsvValueRobust(u, ['pid_vhv', 'PID อสม.']) || '', 
+              community: getCsvValueRobust(u, ['community', 'ชุมชน']) || 'ชุมชนโทกหัวช้าง'
+            };
+          })
+          .filter(u => u.id !== null);
 
         if (typedData.length === 0) throw new Error("ไม่พบข้อมูลบัญชีผู้ใช้ที่ถูกต้อง");
         
@@ -1444,49 +1498,40 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
         
         Swal.fire({ icon: 'success', title: 'นำเข้าบัญชี อสม. สำเร็จ!', text: `อัปเดต/เพิ่มรายชื่อผู้ใช้งานตาราง users จำนวน ${finalUniqueUsers.length} รายการเรียบร้อย` });
       } else {
-        // 🌟 เพิ่มการดึงข้อมูลและ Mapping คอลลัมน์ภาษาไทยจากไฟล์เข้า Supabase ให้ครบ 100%
+        // 🌟 โหมดดึงข้อมูลประชากรเป้าหมายแบบยืดหยุ่นสูงพิเศษ รองรับทุกชื่อคอลัมน์และทุกฟอร์แมตวันที่
         const typedData = jsonBatchArray
           .map(p => {
-            // ระบบช่วยแปลงฟอร์แมตวันที่จาก DD/MM/YYYY เป็น YYYY-MM-DD ให้เข้ากับเงื่อนไขของ SQL DATE
-            let rawDate = p['วันที่คัดกรอง'] || p.screening_date;
-            let formattedDate = null;
-            if (rawDate && rawDate !== '-') {
-              const parts = rawDate.split('/');
-              if (parts.length === 3) {
-                let year = parseInt(parts[2]);
-                if (year > 2500) year -= 543; // รองรับกรณีบันทึกเป็นปี พ.ศ.
-                formattedDate = `${year}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
-              }
-            }
-
+            const pidVal = parseNumberRobust(getCsvValueRobust(p, ['pid', 'เลขทะเบียน']));
+            const rawDate = getCsvValueRobust(p, ['screening_date', 'วันที่คัดกรอง']);
+            
             return {
-              pid: parseInt(p.pid), 
-              full_name: p.full_name || p['ชื่อ-นามสกุล'], 
-              age: parseInt(p.age || p['อายุ']) || 0, 
-              gender: p.gender || p['เพศ'] || 'ชาย',
-              house_no: p.house_no || p['บ้านเลขที่'] || '', 
-              moo: parseInt(p.moo || p['หมู่ที่']) || 0, 
-              village_name: p.village_name || p['ชื่อหมู่บ้าน'] || null, // 📌 เก็บชื่อหมู่บ้าน
-              community: p.community || p['ชุมชน'] || null,       // 📌 เก็บชื่อชุมชน
-              vhv_name: p.vhv_name || p['อสม.ผู้ดูแล'] || '', 
-              vhv_pid: p.vhv_pid || p['PID อสม.'] || '',
-              history_ht: p.history_ht || p['ประวัติ HT'] || null, // 📌 เก็บประวัติโรค HT เดิม
-              history_dm: p.history_dm || p['ประวัติ DM'] || null, // 📌 เก็บประวัติโรค DM เดิม
-              screening_date: formattedDate,                        // 📌 วันที่คัดกรองล่าสุด
-              weight: parseFloat(p['น้ำหนัก'] || p.weight) || null,   // 📌 สัญญาณชีพน้ำหนัก
-              height: parseFloat(p['ส่วนสูง'] || p.height) || null,   // 📌 สัญญาณชีพส่วนสูง
-              waist: parseFloat(p['รอบเอว'] || p.waist) || null,    // 📌 สัญญาณชีครอบเอว
-              sbp: parseInt(p['SBP'] || p.sbp) || null,             // 📌 สัญญาณชีพความดันตัวบน
-              dbp: parseInt(p['DBP'] || p.dbp) || null,             // 📌 สัญญาณชีพความดันตัวล่าง
-              bsl: parseInt(p['BSL'] || p.bsl) || null,             // 📌 สัญญาณชีพน้ำตาลเจาะนิ้ว
-              interpretation_ht: p.interpretation_ht || p['ผลแปล HT'] || null,
-              interpretation_dm: p.interpretation_dm || p['ผลแปล DM'] || null,
-              area_status: p.area_status || p['สถานะพื้นที่'] || 'อยู่ในพื้นที่'
+              pid: pidVal, 
+              full_name: getCsvValueRobust(p, ['full_name', 'ชื่อ-นามสกุล']), 
+              age: parseNumberRobust(getCsvValueRobust(p, ['age', 'อายุ'])) || 0, 
+              gender: getCsvValueRobust(p, ['gender', 'เพศ']) || 'ชาย',
+              house_no: getCsvValueRobust(p, ['house_no', 'บ้านเลขที่']) || '', 
+              moo: parseNumberRobust(getCsvValueRobust(p, ['moo', 'หมู่ที่'])) || 0, 
+              village_name: getCsvValueRobust(p, ['village_name', 'ชื่อหมู่บ้าน']) || null, 
+              community: getCsvValueRobust(p, ['community', 'ชุมชน']) || null,       
+              vhv_name: getCsvValueRobust(p, ['vhv_name', 'อสม.ผู้ดูแล']) || '', 
+              vhv_pid: getCsvValueRobust(p, ['vhv_pid', 'PID อสม.']) || '',
+              history_ht: getCsvValueRobust(p, ['history_ht', 'ประวัติ HT']) || null, 
+              history_dm: getCsvValueRobust(p, ['history_dm', 'ประวัติ DM']) || null, 
+              screening_date: parseDateRobust(rawDate),                        
+              weight: parseNumberRobust(getCsvValueRobust(p, ['weight', 'น้ำหนัก']), true),   
+              height: parseNumberRobust(getCsvValueRobust(p, ['height', 'ส่วนสูง']), true),   
+              waist: parseNumberRobust(getCsvValueRobust(p, ['waist', 'รอบเอว']), true),    
+              sbp: parseNumberRobust(getCsvValueRobust(p, ['sbp', 'SBP', 'ความดันตัวบน'])),             
+              dbp: parseNumberRobust(getCsvValueRobust(p, ['dbp', 'DBP', 'ความดันตัวล่าง'])),             
+              bsl: parseNumberRobust(getCsvValueRobust(p, ['bsl', 'BSL', 'น้ำตาล'])),             
+              interpretation_ht: getCsvValueRobust(p, ['interpretation_ht', 'ผลแปล HT']),
+              interpretation_dm: getCsvValueRobust(p, ['interpretation_dm', 'ผลแปล DM']),
+              area_status: getCsvValueRobust(p, ['area_status', 'สถานะพื้นที่']) || 'อยู่ในพื้นที่'
             };
           })
-          .filter(p => !isNaN(p.pid));
+          .filter(p => p.pid !== null);
 
-        if (typedData.length === 0) throw new Error("ไม่พบข้อมูลประชากรที่ถูกต้อง");
+        if (typedData.length === 0) throw new Error("ไม่พบข้อมูลประชากรที่ถูกต้องในไฟล์ CSV");
 
         const uniqueDataMap = new Map();
         typedData.forEach(item => uniqueDataMap.set(item.pid, item));
@@ -1495,7 +1540,7 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
         const { error: upsertErr } = await db.from('data').upsert(finalUniqueData);
         if (upsertErr) throw upsertErr;
 
-        Swal.fire({ icon: 'success', title: 'นำเข้าข้อมูลเป้าหมายสำเร็จ!', text: `อัปเดตข้อมูลและสัญญาณชีพประชากรเข้าตาราง data จำนวน ${finalUniqueData.length} รายการครบถ้วนแล้วครับ` });
+        Swal.fire({ icon: 'success', title: 'นำเข้าข้อมูลเป้าหมายสำเร็จ!', text: `ระบบตรวจจับและอัปเดตข้อมูลรวมถึงสัญญาณชีพเข้าตาราง data จำนวน ${finalUniqueData.length} รายการเสร็จสมบูรณ์แล้วครับ` });
       }
       fileInput.value = "";
     } catch (err) {
