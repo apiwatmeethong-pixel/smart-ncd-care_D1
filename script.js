@@ -144,7 +144,6 @@ function shiftPerfPage(num) { const maxPage = Math.ceil(masterVhvPerformanceList
 function shiftTgtMgPage(num) { const maxPage = Math.ceil(filteredTargetMgList.length / rowsPerPageLimit) || 1; tgtMgCurrentPage = Math.max(1, Math.min(num, maxPage)); renderTargetMgTable(); }
 function shiftReportPage(num) { const maxPage = Math.ceil(masterReportList.length / rowsPerPageLimit) || 1; reportCurrentPage = Math.max(1, Math.min(num, maxPage)); renderReportTable(); }
 
-/* 🌟 ปรับปรุงการสโคปข้อมูลเมนู 1 ตามเงื่อนไขสิทธิ์ระดับเขตพื้นที่ */
 async function fetchDashboardCountsFromServer() {
   try {
     const dataRows = await supabaseSelectAll('data', 'pid, vhv_pid, moo, community', (q) => { 
@@ -186,7 +185,6 @@ async function fetchDashboardCountsFromServer() {
   } catch (err) { console.error(err); }
 }
 
-/* 🌟 ปรับปรุงการล็อกรายชื่อคัดกรอง เมนู 2 ตามสิทธิ์สากล */
 async function fetchPopulationListFromServer() {
   toggleLoaderDisplay(true);
   try {
@@ -206,7 +204,14 @@ async function fetchPopulationListFromServer() {
     populationDataset = (dataRows || []).map(r => {
       const s = (screenRows || []).find(sc => sc.citizen_id.toString() === r.pid.toString());
       let statusStr = "ยังไม่ได้คัดกรองปีนี้"; if (s) { statusStr = s.ncd_status; }
-      let communityStr = r.community && r.community.trim() !== "" ? ` ชุมชน${r.community}` : "";
+      
+      /* 🛠️ [แก้ไขสำเร็จ] ป้องกันคำว่า "ชุมชน" ซ้ำซ้อนจากการต่อ String ในหน้ารายชื่อคัดกรอง */
+      let cleanComm = r.community ? r.community.trim() : "";
+      let communityStr = "";
+      if (cleanComm !== "") {
+        communityStr = cleanComm.startsWith("ชุมชน") ? ` ${cleanComm}` : ` ชุมชน${cleanComm}`;
+      }
+      
       return {
         pid: r.pid, name: r.full_name, age: r.age, gender: r.gender,
         address: `บ้านเลขที่ ${r.house_no || '-'} ม.${r.moo}${communityStr}`,
@@ -403,20 +408,16 @@ function renderHealthRulesTable() {
   `;
 }
 
-/* 🌟 [แก้ไขสำเร็จ] ปรับปรุงตรรกะการเชื่อมโยงข้อมูลและการแบ่งสิทธิ์ดูผลงาน เมนู 4 ผ่าน pid_vhv */
 async function fetchVhvPerformanceReportFromServer() { 
   toggleLoaderDisplay(true); 
   try {
-    // 1. ดึงบัญชีผู้ใช้งานระบบทั้งหมดที่เป็นสิทธิ์ อสม. (role = 'user')
     const { data: allVhvs, error: userErr } = await db.from('users').select('*').eq('role', 'user');
     if (userErr) throw userErr;
     
-    // 2. ดึงข้อมูลทะเบียนประชากรและตารางคัดกรองทั้งหมดมาประมวลผลแมตช์ในหน่วยความจำ
     const dataRows = await supabaseSelectAll('data', 'pid, vhv_pid, vhv_name, moo, community');
     const screenRows = await supabaseSelectAll('screening', 'citizen_id');
     const screenedPids = screenRows ? screenRows.map(s => s.citizen_id.toString()) : [];
 
-    // 3. กรองสิทธิ์การเข้าถึง อสม. ตาม Level บทบาทหน้าที่ของผู้ใช้งานปัจจุบัน
     let filteredVhvs = allVhvs || [];
     if (activeVhvSession.role === 'user') {
       filteredVhvs = filteredVhvs.filter(u => u.pid_vhv === activeVhvSession.vhvId);
@@ -425,7 +426,6 @@ async function fetchVhvPerformanceReportFromServer() {
         (!activeVhvSession.community || u.community === activeVhvSession.community));
     }
 
-    // 4. เชื่อมโยงเพื่อนับยอดเป้าหมายและผลงานจริงรายคน
     masterVhvPerformanceList = filteredVhvs.map(u => {
       const myCitizens = dataRows.filter(r => 
         (r.vhv_pid && r.vhv_pid.toString() === u.pid_vhv.toString()) || 
@@ -479,7 +479,6 @@ function renderVhvPerformanceTable() {
   safetySetTextContent('labelPerfPaginationInfo', `รายงานแถวที่ ${start+1} ถึง ${end} จากทั้งหมด ${masterVhvPerformanceList.length} อสม.`); compileSmartPaginationLinks(perfCurrentPage, masterVhvPerformanceList.length, 'paginationPerfWrapper', 'shiftPerfPage');
 }
 
-/* 🌟 ปรับปรุงการสโคปข้อมูลการบริหารประชากรประจำเขต เมนู 5 */
 async function fetchManagementTargetsFromServer() { 
   toggleLoaderDisplay(true); 
   try {
@@ -497,7 +496,14 @@ async function fetchManagementTargetsFromServer() {
     }); 
     toggleLoaderDisplay(false); 
     masterTargetMgList = (records || []).map(r => {
-      let communityStr = r.community && r.community.trim() !== "" ? ` ชุมชน${r.community}` : "";
+      
+      /* 🛠️ [แก้ไขสำเร็จ] ป้องกันคำว่า "ชุมชน" ซ้ำซ้อนในหน้ากลุ่มเป้าหมาย */
+      let cleanComm = r.community ? r.community.trim() : "";
+      let communityStr = "";
+      if (cleanComm !== "") {
+        communityStr = cleanComm.startsWith("ชุมชน") ? ` ${cleanComm}` : ` ชุมชน${cleanComm}`;
+      }
+      
       return { pid: r.pid, name: r.full_name, age: r.age, address: `บ้านเลขที่ ${r.house_no || '-'} ม.${r.moo}${communityStr}`, vhv_name: r.vhv_name || '-', status_area: r.area_status || 'อยู่ในพื้นที่' };
     });
     executeTargetMgTableFilter(false);
@@ -593,7 +599,6 @@ async function executeUserCrudAction(action, userId) {
   }
 }
 
-/* 🌟 ปรับปรุงการสโคปหน้าคลังรายงาน เมนู 7 ตามสิทธิ์สากล */
 async function fetchScreeningReportDataFromServer() {
   toggleLoaderDisplay(true);
   try {
