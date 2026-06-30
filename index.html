@@ -1371,54 +1371,83 @@
     }
 
     // 📥 1 & 2. ⚡ ฟังก์ชันนำเข้า CSV สู่ Supabase (สลับสิทธิ์ระหว่างตารางประชากร หรือบัญชีผู้ใช้งาน อสม.)
-    async function executeProcessingCsvUploadToServer() {
-      const fileInput = document.getElementById('inputCsvTargetFile');
-      if (!fileInput || fileInput.files.length === 0) { 
-        Swal.fire({ icon: 'warning', title: 'ยังไม่ได้เลือกไฟล์', text: 'กรุณาเลือกไฟล์เอกสารในรูปแบบนามสกุล .csv ก่อนกดยืนยันคำสั่งครับ' }); return; 
+  async function executeProcessingCsvUploadToServer() {
+  const fileInput = document.getElementById('inputCsvTargetFile');
+  if (!fileInput || fileInput.files.length === 0) { 
+    Swal.fire({ icon: 'warning', title: 'ยังไม่ได้เลือกไฟล์', text: 'กรุณาเลือกไฟล์เอกสารในรูปแบบนามสกุล .csv ก่อนกดยืนยันคำสั่งครับ' }); return; 
+  }
+  
+  const selectedCsvType = document.querySelector('input[name="csvTypeRadio"]:checked').value;
+  const csvFile = fileInput.files[0]; const fileReader = new FileReader(); 
+  toggleLoaderDisplay(true);
+  
+  fileReader.onload = async function(event) {
+    try {
+      const textRawContent = event.target.result;
+      const jsonBatchArray = convertCsvTextToJsonArray(textRawContent);
+      
+      if (jsonBatchArray.length === 0) { throw new Error("ไฟล์ CSV ว่างเปล่าหรือโครงสร้างไม่ถูกต้อง"); }
+
+      if (selectedCsvType === 'users') {
+        const typedData = jsonBatchArray
+          .map(u => ({
+            id: parseInt(u.id), 
+            username: u.username || u['ชื่อผู้ใช้'] || u['เบอร์โทร'], 
+            password: u.password || u['รหัสผ่าน'], 
+            full_name: u.full_name || u['ชื่อ-นามสกุล'] || u['ชื่อจริง'],
+            role: u.role || u['สิทธิ์'] || 'user', 
+            moo: parseInt(u.moo || u['หมู่ที่']) || 0, 
+            pid_vhv: u.pid_vhv || u['PID อสม.'] || '', 
+            community: u.community || u['ชุมชน'] || 'ชุมชนโทกหัวช้าง'
+          }))
+          .filter(u => !isNaN(u.id));
+
+        if (typedData.length === 0) throw new Error("ไม่พบข้อมูลบัญชีผู้ใช้ที่ถูกต้อง");
+        
+        // 🔥 สกัดแถวซ้ำ (De-duplicate) สำหรับตาราง users
+        const uniqueUsersMap = new Map();
+        typedData.forEach(item => uniqueUsersMap.set(item.id, item));
+        const finalUniqueUsers = Array.from(uniqueUsersMap.values());
+        
+        const { error: upsertErr } = await db.from('users').upsert(finalUniqueUsers);
+        if (upsertErr) throw upsertErr;
+        
+        Swal.fire({ icon: 'success', title: 'นำเข้าบัญชี อสม. สำเร็จ!', text: `อัปเดต/เพิ่มรายชื่อผู้ใช้งานตาราง users จำนวน ${finalUniqueUsers.length} รายการเรียบร้อย` });
+      } else {
+        // 🌟 รองรับการแมปชื่อหัวตารางภาษาไทยจากไฟล์ ncd_screen_export_FY2027 (1).csv โดยตรงอัตโนมัติ
+        const typedData = jsonBatchArray
+          .map(p => ({
+            pid: parseInt(p.pid), 
+            full_name: p.full_name || p['ชื่อ-นามสกุล'], 
+            age: parseInt(p.age || p['อายุ']) || 0, 
+            gender: p.gender || p['เพศ'] || 'ชาย',
+            house_no: p.house_no || p['บ้านเลขที่'] || '', 
+            moo: parseInt(p.moo || p['หมู่ที่']) || 0, 
+            vhv_name: p.vhv_name || p['อสม.ผู้ดูแล'] || '', 
+            vhv_pid: p.vhv_pid || p['PID อสม.'] || '',
+            area_status: p.area_status || p['สถานะพื้นที่'] || 'อยู่ในพื้นที่'
+          }))
+          .filter(p => !isNaN(p.pid));
+
+        if (typedData.length === 0) throw new Error("ไม่พบข้อมูลประชากรที่ถูกต้อง หรือลืมตั้งชื่อหัวตารางแถวแรกสุดว่า pid");
+
+        // 🔥 สกัดแถวซ้ำ (De-duplicate) สำหรับตาราง data
+        const uniqueDataMap = new Map();
+        typedData.forEach(item => uniqueDataMap.set(item.pid, item));
+        const finalUniqueData = Array.from(uniqueDataMap.values());
+
+        const { error: upsertErr } = await db.from('data').upsert(finalUniqueData);
+        if (upsertErr) throw upsertErr;
+
+        Swal.fire({ icon: 'success', title: 'นำเข้าข้อมูลเป้าหมายสำเร็จ!', text: `อัปเดต/เพิ่มรายชื่อประชากรเข้าสู่ตาราง data จำนวน ${finalUniqueData.length} รายการเรียบร้อย (ระบบกรองแถวซ้ำออกให้คุณแล้วครับ)` });
       }
-      
-      const selectedCsvType = document.querySelector('input[name="csvTypeRadio"]:checked').value;
-      const csvFile = fileInput.files[0]; const fileReader = new FileReader(); 
-      toggleLoaderDisplay(true);
-      
-      fileReader.onload = async function(event) {
-        try {
-          const textRawContent = event.target.result;
-          const jsonBatchArray = convertCsvTextToJsonArray(textRawContent);
-          
-          if (jsonBatchArray.length === 0) { throw new Error("ไฟล์ CSV ว่างเปล่าหรือโครงสร้างไม่ถูกต้อง"); }
-
-          if (selectedCsvType === 'users') {
-            // โหมดอัปโหลดและเขียนทับข้อมูลบัญชีผู้ใช้ระบบ (ตาราง users)
-            const typedData = jsonBatchArray.map(u => ({
-              id: parseInt(u.id), username: u.username, password: u.password, full_name: u.full_name,
-              role: u.role || 'user', moo: parseInt(u.moo) || 0, pid_vhv: u.pid_vhv || '', community: u.community || 'ชุมชนโทกหัวช้าง'
-            }));
-            
-            const { error: upsertErr } = await db.from('users').upsert(typedData);
-            if (upsertErr) throw upsertErr;
-            
-            Swal.fire({ icon: 'success', title: 'นำเข้าบัญชี อสม. สำเร็จ!', text: `อัปเดต/เพิ่มรายชื่อผู้ใช้งานตาราง users จำนวน ${typedData.length} รายการเรียบร้อย` });
-          } else {
-            // โหมดอัปโหลดและเขียนทับข้อมูลประชากรเป้าหมาย (ตาราง data)
-            const typedData = jsonBatchArray.map(p => ({
-              pid: parseInt(p.pid), full_name: p.full_name, age: parseInt(p.age) || 0, gender: p.gender || 'ชาย',
-              house_no: p.house_no || '', moo: parseInt(p.moo) || 0, vhv_name: p.vhv_name || '', vhv_pid: p.vhv_pid || '',
-              area_status: p.area_status || 'อยู่ในพื้นที่'
-            }));
-
-            const { error: upsertErr } = await db.from('data').upsert(typedData);
-            if (upsertErr) throw upsertErr;
-
-            Swal.fire({ icon: 'success', title: 'นำเข้าข้อมูลเป้าหมายสำเร็จ!', text: `อัปเดต/เพิ่มรายชื่อประชากรเข้าสู่ตาราง data จำนวน ${typedData.length} รายการเรียบร้อย` });
-          }
-          fileInput.value = "";
-        } catch (err) {
-          Swal.fire({ icon: 'error', title: 'การนำเข้าล้มเหลว', text: 'ตรวจพบข้อผิดพลาด: ' + err.message });
-        } finally { toggleLoaderDisplay(false); }
-      };
-      fileReader.readAsText(csvFile, "UTF-8");
-    }
+      fileInput.value = "";
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'การนำเข้าล้มเหลว', text: 'ตรวจพบข้อผิดพลาด: ' + err.message });
+    } finally { toggleLoaderDisplay(false); }
+  };
+  fileReader.readAsText(csvFile, "UTF-8");
+}
 
     // 🗑️ 3. ⚡ คำสั่งล้างระบบประวัติผลคัดกรองทั้งหมด (`screening`) เพื่อเคลียร์รอบปีงบประมาณใหม่
     async function executeClearScreeningDatabaseAction() {
