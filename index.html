@@ -7,7 +7,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
-  
+  <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/822/822118.png">
   <style>
     :root {
       --app-gradient: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
@@ -271,14 +271,14 @@
         <nav id="sidebarMenu" class="sidebar-glass">
           <div class="position-sticky pt-2 px-1">
             <ul class="nav flex-column gap-2">
-              <li class="nav-item"><a class="nav-link active fs-4 py-2" id="btn-view-dash" onclick="changeViewWindow('dash')"><i class="fa-solid fa-chart-simple m-2 text-primary"></i>1.สรุปสถิติ</a></li>
-              <li class="nav-item"><a class="nav-link fs-4 py-2" id="btn-view-list" onclick="changeViewWindow('list')"><i class="fa-solid fa-stethoscope m-2 text-success"></i>2.คัดกรอง</a></li>
-              <li class="nav-item"><a class="nav-link fs-4 py-2" id="btn-view-rules" onclick="changeViewWindow('rules')"><i class="fa-solid fa-book-medical m-2 text-info"></i>3.ดัชนีสุขภาพ</a></li>
-              <li class="nav-item"><a class="nav-link fs-4 py-2" id="btn-view-perf" onclick="changeViewWindow('perf')"><i class="fa-solid fa-star m-2 text-warning"></i>4.ผลงาน</a></li>
-              <li class="nav-item admin-staff-only d-none"><a class="nav-link fs-4 py-2" id="btn-view-mgtgt" onclick="changeViewWindow('mgtgt')"><i class="fa-solid fa-sliders m-2 text-danger"></i>5.เป้าหมาย</a></li>
-              <li class="nav-item admin-staff-only d-none"><a class="nav-link fs-4 py-2" id="btn-view-mgusr" onclick="changeViewWindow('mgusr')"><i class="fa-solid fa-user-gear m-2 text-purple"></i>6.จัดการผู้ใช้</a></li>
-              <li class="nav-item admin-staff-only d-none"><a class="nav-link fs-4 py-2" id="btn-view-report" onclick="changeViewWindow('report')"><i class="fa-solid fa-file-invoice text-dark-blue m-2"></i>7.รายงาน</a></li>
-              <li class="nav-item admin-only d-none"><a class="nav-link fs-4 py-2" id="btn-view-upload" onclick="changeViewWindow('upload')"><i class="fa-solid fa-file-import text-orange m-2"></i>8.อัปโหลด</a></li>
+              <li class="nav-item"><a class="nav-link active fs-4 py-2" id="btn-view-dash" onclick="changeViewWindow('dash')"><i class="fa-solid fa-chart-simple me-2 text-primary"></i>1.สรุปสถิติ</a></li>
+              <li class="nav-item"><a class="nav-link fs-4 py-2" id="btn-view-list" onclick="changeViewWindow('list')"><i class="fa-solid fa-stethoscope me-2 text-success"></i>2.คัดกรอง</a></li>
+              <li class="nav-item"><a class="nav-link fs-4 py-2" id="btn-view-rules" onclick="changeViewWindow('rules')"><i class="fa-solid fa-book-medical me-2 text-info"></i>3.ดัชนีสุขภาพ</a></li>
+              <li class="nav-item"><a class="nav-link fs-4 py-2" id="btn-view-perf" onclick="changeViewWindow('perf')"><i class="fa-solid fa-star me-2 text-warning"></i>4.ผลงาน</a></li>
+              <li class="nav-item admin-staff-only d-none"><a class="nav-link fs-4 py-2" id="btn-view-mgtgt" onclick="changeViewWindow('mgtgt')"><i class="fa-solid fa-sliders me-2 text-danger"></i>5.เป้าหมาย</a></li>
+              <li class="nav-item admin-staff-only d-none"><a class="nav-link fs-4 py-2" id="btn-view-mgusr" onclick="changeViewWindow('mgusr')"><i class="fa-solid fa-user-gear me-2 text-purple"></i>6.จัดการผู้ใช้</a></li>
+              <li class="nav-item admin-staff-only d-none"><a class="nav-link fs-4 py-2" id="btn-view-report" onclick="changeViewWindow('report')"><i class="fa-solid fa-file-invoice text-dark-blue me-2"></i>7.รายงาน</a></li>
+              <li class="nav-item admin-only d-none"><a class="nav-link fs-4 py-2" id="btn-view-upload" onclick="changeViewWindow('upload')"><i class="fa-solid fa-file-import text-orange me-2"></i>8.ศูนย์แอดมิน</a></li>
             </ul>
           </div>
         </nav>
@@ -462,16 +462,61 @@
               </div>
             </div>
 
+            <!-- 🛠️ เมนูที่ 8: ศูนย์บริการจัดการระบบและฐานข้อมูลสำหรับ Admin สูงสุด -->
             <div id="view-window-upload" class="sub-view-panel d-none">
-              <h2 class="fw-black text-dark pt-2 m-0">8. ศูนย์นำเข้าข้อมูลประชากรเป้าหมายประจำปีงบประมาณ</h2>
-              <p class="text-muted fs-4 mb-4">บริการสำหรับผู้ดูแลระบบสูงสุดในการล้างข้อมูลประชากรเก่า และเขียนทับด้วยข้อมูลระเบียนราษฎร์ชุดใหม่ผ่านไฟล์รูปแบบ CSV</p>
-              <div class="card card-container-panel p-5 text-center bg-white border-2" style="border-style: dashed !important; border-color: #94a3b8 !important;">
-                <div class="mb-3"><i class="fa-solid fa-file-csv text-orange fa-5x animate-pulse"></i></div>
-                <h3 class="fw-bold text-dark mb-2">เลือกไฟล์รายชื่อประชากร (.csv)</h3>
-                <p class="text-muted fs-5 mb-4">โครงสร้างแถวคอลัมน์ของไฟล์ CSV ต้องเรียงลำดับหัวข้อให้ตรงตามมาตรฐานฐานข้อมูลชีท data ปัจจุบันเท่านั้น</p>
-                <div class="max-width-500 mx-auto">
-                  <input type="file" id="inputCsvTargetFile" class="form-control form-control-custom-file form-control-lg fs-4 mb-4" accept=".csv">
-                  <button class="btn btn-orange btn-lg w-100 py-3 fs-3 fw-bold text-white rounded-pill shadow" onclick="executeProcessingCsvUploadToServer()"><i class="fa-solid fa-upload me-2"></i> เริ่มทำงานนำเข้าข้อมูล (ทับข้อมูลเดิมทั้งหมด)</button>
+              <h2 class="fw-black text-dark pt-2 m-0">8. ศูนย์บริการจัดการระบบและฐานข้อมูลสำหรับ Admin สูงสุด</h2>
+              <p class="text-muted fs-4 mb-4">บริการจัดการล้างระบบ เขียนทับข้อมูลเป้าหมายประจำปีงบประมาณ และการอัปเดตรายชื่อบัญชีผู้เข้าใช้งาน อสม.</p>
+              
+              <div class="row g-4">
+                <div class="col-lg-7">
+                  <div class="card card-container-panel p-4 h-100 bg-white">
+                    <h4 class="fw-bold text-dark mb-3"><i class="fa-solid fa-file-import text-primary me-2"></i>ระบบนำเข้าข้อมูลผ่านไฟล์ CSV เข้า Supabase</h4>
+                    
+                    <label class="form-label fw-bold fs-5 text-secondary mb-2">1. เลือกประเภทข้อมูลที่ต้องการนำเข้า</label>
+                    <div class="btn-group w-100 mb-4" role="group">
+                      <input type="radio" class="btn-check" name="csvTypeRadio" id="csv_type_target" value="target" checked>
+                      <label class="btn btn-outline-primary py-3 fs-5 fw-bold" for="csv_type_target"><i class="fa-solid fa-users me-1"></i> รายชื่อประชากรเป้าหมาย (`data`)</label>
+                      
+                      <input type="radio" class="btn-check" name="csvTypeRadio" id="csv_type_users" value="users">
+                      <label class="btn btn-outline-purple py-3 fs-5 fw-bold" for="csv_type_users"><i class="fa-solid fa-user-gear me-1"></i> รายชื่อบัญชีผู้ใช้งาน (`users`)</label>
+                    </div>
+
+                    <label class="form-label fw-bold fs-5 text-secondary mb-2">2. เลือกไฟล์เอกสาร (.csv)</label>
+                    <input type="file" id="inputCsvTargetFile" class="form-control form-control-custom-file form-control-lg fs-4 mb-3" accept=".csv">
+                    
+                    <p class="text-muted small mb-4">
+                      * หมายเหตุ: การนำเข้าไฟล์ CSV จะทำการเขียนทับ/แทรกข้อมูลลงตาราง Supabase ของท่านทันที โปรดตรวจสอบชื่อหัวคอลัมน์แถวแรกสุดในไฟล์ CSV ให้ตรงตามชื่อคอลัมน์ของตารางเป้าหมายก่อนกดยืนยันคำสั่ง
+                    </p>
+                    
+                    <button class="btn btn-primary btn-lg w-100 py-3 fs-3 fw-bold rounded-pill shadow" onclick="executeProcessingCsvUploadToServer()">
+                      <i class="fa-solid fa-cloud-arrow-up me-2"></i> เริ่มกระบวนการนำเข้าไฟล์ข้อมูล
+                    </button>
+                  </div>
+                </div>
+
+                <div class="col-lg-5">
+                  <div class="card card-container-panel p-4 h-100 bg-white border border-danger d-flex flex-column justify-content-between">
+                    <div>
+                      <h4 class="fw-bold text-danger mb-3"><i class="fa-solid fa-triangle-exclamation me-2"></i>โซนอันตรายล้างระบบ (Danger Zone)</h4>
+                      <p class="text-muted small mb-4">คำสั่งสำหรับเคลียร์ข้อมูลตารางระบบขึ้นรอบปีงบประมาณใหม่ โปรดใช้งานด้วยความระมัดระวังสูงสุด</p>
+                    </div>
+                    
+                    <div class="p-3 border rounded border-danger-subtle mb-3 text-center bg-light">
+                      <h5 class="fw-bold text-dark fs-5 mb-1">1. ล้างข้อมูลผลคัดกรองสะสมทั้งหมด</h5>
+                      <p class="text-muted small mb-2">ล้างตารางผลประเมินสัญญาณชีพ น้ำหนัก ความดัน น้ำตาลในตารางคัดกรองออกทั้งหมด</p>
+                      <button class="btn btn-danger btn-sm w-100 py-2 fw-bold rounded-pill shadow-sm" onclick="executeClearScreeningDatabaseAction()">
+                        <i class="fa-solid fa-trash-can me-1"></i> ล้างประวัติการคัดกรอง (`screening`)
+                      </button>
+                    </div>
+
+                    <div class="p-3 border rounded border-danger-subtle text-center bg-light">
+                      <h5 class="fw-bold text-dark fs-5 mb-1">2. ล้างข้อมูลประชากรเป้าหมาย</h5>
+                      <p class="text-muted small mb-2">ล้างรายชื่อประชากรทั้งหมดในเขตพื้นที่ในตารางฐานข้อมูลพื้นฐานออกทั้งหมด</p>
+                      <button class="btn btn-danger btn-sm w-100 py-2 fw-bold rounded-pill shadow-sm" onclick="executeClearTargetDatabaseAction()">
+                        <i class="fa-solid fa-users-slash me-1"></i> ล้างรายชื่อเป้าหมาย (`data`)
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -509,9 +554,11 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- 🔌 นำเข้าเครื่องมือเปิดระบบเชื่อมต่อ Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <script>
+    // 🔐 กำหนดพิกัดที่อยู่ระบบกุญแจความปลอดภัยฐานข้อมูล Supabase 100%
     const SUPABASE_URL = 'https://ddjcwswzodkdzjfksmqm.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkamN3c3d6b2RrZHpqZmtzbXFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NzM0OTAsImV4cCI6MjA5ODA0OTQ5MH0.lLgqwVakZMJqrj-YuR7sCAlqrMp5pSA-ayUMXuvF3ro'; 
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -721,7 +768,6 @@
       renderReportTable(); 
     }
 
-    // 📊 1. หน้าสรุปสถิติ (นับเป้าหมายจาก data และผลการบันทึกจากตาราง screening)
     async function fetchDashboardCountsFromServer() {
       try {
         let dataQuery = db.from('data').select('pid, vhv_pid');
@@ -740,11 +786,7 @@
           filteredScreenings = filteredScreenings.filter(s => assignedPids.includes(s.citizen_id.toString()) || s.operator === activeVhvSession.name);
         }
 
-        let normalCount = 0;
-        let riskCount = 0;
-        let alertCount = 0;
-        let totalSmokerCount = 0;
-        let totalDrinkerCount = 0;
+        let normalCount = 0; let riskCount = 0; let alertCount = 0; let totalSmokerCount = 0; let totalDrinkerCount = 0;
 
         const tbody = document.getElementById('dashboardSummaryTableBody'); 
         if (tbody) tbody.innerHTML = '';
@@ -764,7 +806,7 @@
             else if (item.ncd_status.includes('แดง') || item.ncd_status.includes('สงสัย')) bClass = "bg-danger";
             
             const tr = document.createElement('tr');
-            tr.innerHTML = `<td data-label="ชื่อ - นามสกุล">${item.name}</td><td data-label="สรุปสถานะกลุ่ม"><span class="badge ${bClass} fs-6">${item.ncd_status}</span></td><td data-label="แปลดัชนีมวลกาย" class="text-primary">${item.bmi}</td><td data-label="แปลความดัน (HT)">${item.bp_status}</td><td data-label="แปลน้ำตาล (DM)">${item.fbs_status}</td><td data-label="ประเมินหัวใจ (CVD)">${item.cvd_risk}</td>`;
+            tr.innerHTML = `<td data-label="ชื่อ - นามสกุล">${item.name}</td><td data-label="สรุปสถานะกลุ่ม"><span class="badge ${bClass} fs-6">${item.ncd_status}</span></td><td data-label="แปลดัชนีมวลกาย" class="text-primary">${item.bmi || '-'}</td><td data-label="แปลความดัน (HT)">${item.bp_status}</td><td data-label="แปลน้ำตาล (DM)">${item.fbs_status}</td><td data-label="ประเมินหัวใจ (CVD)">${item.cvd_risk}</td>`;
             tbody.appendChild(tr);
           }
         });
@@ -784,12 +826,9 @@
         let calculatedProgressPercent = ((filteredScreenings.length / (assignedCount || 1)) * 100).toFixed(1);
         safetySetTextContent('stat-progress-percent', calculatedProgressPercent + '%');
 
-      } catch (err) {
-        console.error(err);
-      }
+      } catch (err) { console.error(err); }
     }
 
-    // 👥 2. ดึงรายชื่อประชากร (ดึงข้อมูลพื้นฐานจาก data และอ้างอิงสถานะล่าสุดจากตาราง screening)
     async function fetchPopulationListFromServer() {
       toggleLoaderDisplay(true);
       try {
@@ -806,40 +845,23 @@
         populationDataset = (dataRows || []).map(r => {
           const s = (screenRows || []).find(sc => sc.citizen_id.toString() === r.pid.toString());
           let statusStr = "ยังไม่ได้คัดกรองปีนี้";
-          if (s) {
-            statusStr = s.ncd_status;
-          }
+          if (s) { statusStr = s.ncd_status; }
 
           return {
-            pid: r.pid,
-            name: r.full_name,
-            age: r.age,
-            gender: r.gender,
+            pid: r.pid, name: r.full_name, age: r.age, gender: r.gender,
             address: `บ้านเลขที่ ${r.house_no || '-'} ม.${r.moo} โทกหัวช้าง`,
-            last_screening_status: statusStr,
-            history_ht: r.history_ht || '-',
-            history_dm: r.history_dm || '-',
-            old_weight: r.weight || '-',
-            old_height: r.height || '-',
-            old_waist: r.waist || '-',
-            screen_id: s ? s.id : '',
-            screen_weight: s ? s.weight : '',
-            screen_height: s ? s.height : '',
-            screen_waist: s ? s.waist : '',
-            screen_sbp: s ? s.bp_sys : '',
-            screen_dbp: s ? s.bp_dia : '',
-            screen_bsl: s ? s.fbs : '',
-            screen_smoking: s ? s.smoking : 'ไม่สูบ',
-            screen_alcohol: s ? s.alcohol : 'ไม่ดื่ม',
-            screen_exercise: s ? s.exercise : 'เพียงพอ'
+            last_screening_status: statusStr, history_ht: r.history_ht || '-', history_dm: r.history_dm || '-',
+            old_weight: r.weight || '-', old_height: r.height || '-', old_waist: r.waist || '-',
+            screen_id: s ? s.id : '', screen_weight: s ? s.weight : '', screen_height: s ? s.height : '',
+            screen_waist: s ? s.waist : '', screen_sbp: s ? s.bp_sys : '', screen_dbp: s ? s.bp_dia : '',
+            screen_bsl: s ? s.fbs : '', screen_smoking: s ? s.smoking : 'ไม่สูบ',
+            screen_alcohol: s ? s.alcohol : 'ไม่ดื่ม', screen_exercise: s ? s.exercise : 'เพียงพอ'
           };
         });
 
-        toggleLoaderDisplay(false);
-        executeTableFilter(false);
+        toggleLoaderDisplay(false); executeTableFilter(false);
       } catch (err) {
-        toggleLoaderDisplay(false);
-        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message });
+        toggleLoaderDisplay(false); Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message });
       }
     }
 
@@ -939,7 +961,6 @@
       });
     }
 
-    // 🧠 3. ระบบคำนวณและประมวลผลทางคลินิก (คงตัวสคริปต์และการคำนวณทางคณิตศาสตร์และข้อความคำแนะนำเดิมไว้แบบ 100%)
     function runClinicalEvaluationEngine() {
       const wEl = document.getElementById('in_weight'); const hEl = document.getElementById('in_height'); const sbpEl = document.getElementById('in_sbp'); const dbpEl = document.getElementById('in_dbp'); const bslEl = document.getElementById('in_bsl'); const waistEl = document.getElementById('in_waist');
       const ageEl = document.getElementById('form_age'); const genderEl = document.getElementById('form_gender');
@@ -1025,7 +1046,6 @@
       else if (cat === 'ex' && exLow) document.getElementById('panel_freq_ex').classList.toggle('d-none', !exLow.checked);
     }
 
-    // 💾 4. สั่งบันทึกผล (อัปเดต/แทรกข้อมูลลงตาราง screening และบันทึกประวัติการคัดกรองลงตาราง data)
     async function submitFormScreeningData(e) {
       e.preventDefault(); const form = document.getElementById('ncdForm'); 
       const wRaw = document.getElementById('in_weight').value;
@@ -1045,32 +1065,19 @@
       
       let recId = document.getElementById('form_record_id').value;
       const citizenIdVal = document.getElementById('form_pid').value;
-      if (!recId || recId === "") {
-        recId = `SCR-${citizenIdVal}-${new Date().getTime()}`;
-      }
+      if (!recId || recId === "") { recId = `SCR-${citizenIdVal}-${new Date().getTime()}`; }
 
       const payload = {
-        id: recId, 
-        citizen_id: parseInt(citizenIdVal), 
-        name: document.getElementById('form_name').value, 
-        age: parseInt(document.getElementById('form_age').value), 
-        gender: document.getElementById('form_gender').value, 
-        weight: parseFloat(wRaw), 
-        height: parseFloat(hRaw), 
-        bmi: parseFloat(document.getElementById('rt-bmi').innerText) || 0, 
-        waist: parseFloat(waistRaw), 
-        bp_sys: sbp, 
-        bp_dia: dbp, 
-        bp_status: document.getElementById('rt-bp').innerText, 
-        fbs: bsl, 
-        fbs_status: document.getElementById('rt-bsl').innerText,
+        id: recId, citizen_id: parseInt(citizenIdVal), name: document.getElementById('form_name').value, 
+        age: parseInt(document.getElementById('form_age').value), gender: document.getElementById('form_gender').value, 
+        weight: parseFloat(wRaw), height: parseFloat(hRaw), bmi: parseFloat(document.getElementById('rt-bmi').innerText) || 0, 
+        waist: parseFloat(waistRaw), bp_sys: sbp, bp_dia: dbp, bp_status: document.getElementById('rt-bp').innerText, 
+        fbs: bsl, fbs_status: document.getElementById('rt-bsl').innerText,
         smoking: document.getElementById('sm_yes').checked ? `สูบ (${document.getElementById('sel_freq_smoke').value})` : "ไม่สูบ", 
         alcohol: document.getElementById('alc_yes').checked ? `ดื่ม (${document.getElementById('sel_freq_alc').value})` : "ไม่ดื่ม", 
         exercise: document.getElementById('ex_ok').checked ? "เพียงพอ" : `ไม่เพียงพอ (${document.getElementById('sel_freq_ex').value})`, 
-        cvd_risk: document.getElementById('rt-cvd').innerText, 
-        ncd_status: document.getElementById('rt-status-text').innerText, 
-        date: new Date().toLocaleDateString('th-TH'),
-        operator: activeVhvSession.name
+        cvd_risk: document.getElementById('rt-cvd').innerText, ncd_status: document.getElementById('rt-status-text').innerText, 
+        date: new Date().toLocaleDateString('th-TH'), operator: activeVhvSession.name
       };
       
       toggleLoaderDisplay(true); 
@@ -1079,23 +1086,14 @@
         if (screenErr) throw screenErr;
 
         await db.from('data').update({
-          screening_date: new Date().toISOString().split('T')[0],
-          weight: parseFloat(wRaw),
-          height: parseFloat(hRaw),
-          waist: parseFloat(waistRaw),
-          sbp: sbp,
-          dbp: dbp,
-          bsl: bsl,
-          interpretation_ht: document.getElementById('rt-bp').innerText,
-          interpretation_dm: document.getElementById('rt-bsl').innerText
+          screening_date: new Date().toISOString().split('T')[0], weight: parseFloat(wRaw),
+          height: parseFloat(hRaw), waist: parseFloat(waistRaw), sbp: sbp, dbp: dbp, bsl: bsl,
+          interpretation_ht: document.getElementById('rt-bp').innerText, interpretation_dm: document.getElementById('rt-bsl').innerText
         }).eq('pid', citizenIdVal);
 
-        toggleLoaderDisplay(false); 
-        Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false }); 
-        changeViewWindow('list'); 
+        toggleLoaderDisplay(false); Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false }); changeViewWindow('list'); 
       } catch (err) {
-        toggleLoaderDisplay(false);
-        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message });
+        toggleLoaderDisplay(false); Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message });
       }
     }
 
@@ -1106,39 +1104,27 @@
           tbody.innerHTML += `<tr><td data-label="ดัชนีชี้วัด"><span class="badge bg-primary fs-5 px-3 py-2">${r.category}</span></td><td data-label="ช่วงระดับเกณฑ์" class="fs-4">ช่วงค่า: ${r.min_value} - ${r.max_value}</td><td data-label="ผลการวิเคราะห์" class="fs-4 text-dark fw-bold">${r.result}</td><td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">${r.advice}</td></tr>`; 
         } 
       });
-      tbody.innerHTML += `<tr><td data-label="ดัชนีชี้วัด"><span class="badge fs-5 px-3 py-2" style="background-color: #0284c7;">รอบเอว (ชาย)</span></td><td data-label="ช่วงระดับเกณฑ์" class="fs-4">ไม่เกิน 90 เซนติเมตร (หรือ ไม่เกิน ส่วนสูง ÷ 2)</td><td data-label="ผลการวิเคราะห์" class="fs-4 text-success fw-bold">ปกติ</td><td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">รอบเอวอยู่ในเกณฑ์ปลอดภัย ดัชนีรอบเอวสมส่วน ไม่มีความเสี่ยงภาวะอ้วนลงพุง</td></tr>`;
-      tbody.innerHTML += `<tr><td data-label="ดัชนีชี้วัด"><span class="badge fs-5 px-3 py-2" style="background-color: #b91c1c;">รอบเอว (ชาย)</span></td><td data-label="ช่วงระดับเกณฑ์" class="fs-4">ตั้งแต่ 91 เซนติเมตร ขึ้นไป (หรือ เกินเกณฑ์ ส่วนสูง ÷ 2)</td><td class="fs-4 text-danger fw-bold">อ้วนลงพุง</td><td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">มีภาวะอ้วนลงพุง เสี่ยงต่อโรคแทรกซ้อนหลอดเลือดหัวใจ สมอง และเบาหวานรายใหม่</td></tr>`;
-      tbody.innerHTML += `<tr><td data-label="ดัชนีชี้วัด"><span class="badge fs-5 px-3 py-2" style="background-color: #ec4899;">รอบเอว (หญิง)</span></td><td data-label="ช่วงระดับเกณฑ์" class="fs-4">ไม่เกิน 80 เซนติเมตร (หรือ ไม่เกิน ส่วนสูง ÷ 2)</td><td class="fs-4 text-success fw-bold">ปกติ</td><td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">รอบเอวอยู่ในเกณฑ์ปลอดภัย ดัชนีรอบเอวสมส่วน ไม่มีความเสี่ยงภาวะอ้วนลงพุง</td></tr>`;
-      tbody.innerHTML += `<tr><td data-label="ดัชนีชี้วัด"><span class="badge fs-5 px-3 py-2" style="background-color: #be185d;">รอบเอว (หญิง)</span></td><td data-label="ช่วงระดับเกณฑ์" class="fs-4">ตั้งแต่ 81 เซนติเมตร ขึ้นไป (หรือ เกินเกณฑ์ ส่วนสูง ÷ 2)</td><td class="fs-4 text-danger fw-bold">อ้วนลงพุง</td><td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">มีภาวะอ้วนลงพุง เสี่ยงต่อโรคแทรกซ้อนหลอดเลือดหัวใจ สมอง และเบาหวานรายใหม่</td></tr>`;
     }
 
-    // 🏆 5. คำนวณความคืบหน้าและผลงานของ อสม. รายบุคคล
     async function fetchVhvPerformanceReportFromServer() { 
       toggleLoaderDisplay(true); 
       try {
         const { data: dataRows } = await db.from('data').select('vhv_name, moo, pid');
         const { data: screenRows } = await db.from('screening').select('citizen_id');
 
-        let vhvMap = {};
-        const screenedPids = screenRows ? screenRows.map(s => s.citizen_id.toString()) : [];
+        let vhvMap = {}; const screenedPids = screenRows ? screenRows.map(s => s.citizen_id.toString()) : [];
 
         if (dataRows) {
           dataRows.forEach(r => {
-            let vhvName = r.vhv_name;
-            if(!vhvName || vhvName.trim() === "") return;
-            if(!vhvMap[vhvName]) {
-              vhvMap[vhvName] = { name: vhvName, moo: r.moo || 3, target: 0, done: 0 };
-            }
+            let vhvName = r.vhv_name; if(!vhvName || vhvName.trim() === "") return;
+            if(!vhvMap[vhvName]) { vhvMap[vhvName] = { name: vhvName, moo: r.moo || 3, target: 0, done: 0 }; }
             vhvMap[vhvName].target++;
-            if (screenedPids.includes(r.pid.toString())) {
-              vhvMap[vhvName].done++;
-            }
+            if (screenedPids.includes(r.pid.toString())) { vhvMap[vhvName].done++; }
           });
         }
 
         masterVhvPerformanceList = Object.values(vhvMap).map(v => {
-          let pending = v.target - v.done;
-          let percentage = ((v.done / v.target) * 100).toFixed(1);
+          let pending = v.target - v.done; let percentage = ((v.done / v.target) * 100).toFixed(1);
           return { name: v.name, moo: v.moo, target: v.target, done: v.done, pending: pending, percentage: percentage };
         });
 
@@ -1146,9 +1132,7 @@
         const maxPage = Math.ceil(masterVhvPerformanceList.length / rowsPerPageLimit) || 1;
         perfCurrentPage = Math.max(1, Math.min(perfCurrentPage, maxPage));
         renderVhvPerformanceTable(); 
-      } catch(err) {
-        toggleLoaderDisplay(false);
-      }
+      } catch(err) { toggleLoaderDisplay(false); }
     }
     
     function renderVhvPerformanceTable() {
@@ -1161,7 +1145,6 @@
       compileSmartPaginationLinks(perfCurrentPage, masterVhvPerformanceList.length, 'paginationPerfWrapper', 'shiftPerfPage');
     }
 
-    // 🏡 6. แผงจัดการกลุ่มเป้าหมาย (ดึงระเบียนฐานรากประชากรในพื้นที่ทั้งหมด)
     async function fetchManagementTargetsFromServer() { 
       toggleLoaderDisplay(true); 
       try {
@@ -1171,9 +1154,7 @@
           pid: r.pid, name: r.full_name, age: r.age, address: `บ้านเลขที่ ${r.house_no || '-'} ม.${r.moo}`, vhv_name: r.vhv_name || '-', status_area: r.area_status || 'อยู่ในพื้นที่'
         }));
         executeTargetMgTableFilter(false);
-      } catch (err) {
-        toggleLoaderDisplay(false);
-      }
+      } catch (err) { toggleLoaderDisplay(false); }
     }
     
     function executeTargetMgTableFilter(isFromUserInput = false) { 
@@ -1221,7 +1202,6 @@
       Swal.fire({ icon: 'success', title: 'อัปเดตโลโก้สำเร็จ' });
     }
 
-    // 🔑 7. จัดการบัญชีผู้ใช้งานระบบ อสม. (อ้างอิงตาราง users บนโครงสร้างคอลัมน์ภาษาอังกฤษ)
     async function fetchUserAccountsFromServer() {
       toggleLoaderDisplay(true);
       try {
@@ -1259,21 +1239,16 @@
     async function executeSaveUserForm(e) {
       e.preventDefault(); const uid = document.getElementById('modal_user_id').value;
       const payload = {
-        username: document.getElementById('modal_user').value.trim(),
-        password: document.getElementById('modal_pass').value.trim(),
-        full_name: document.getElementById('modal_fullname').value.trim(),
-        role: document.getElementById('modal_type').value,
-        moo: parseInt(document.getElementById('modal_moo').value) || 0,
-        pid_vhv: document.getElementById('modal_pid_อสม').value.trim(),
-        community: 'ชุมชนโทกหัวช้าง'
+        username: document.getElementById('modal_user').value.trim(), password: document.getElementById('modal_pass').value.trim(),
+        full_name: document.getElementById('modal_fullname').value.trim(), role: document.getElementById('modal_type').value,
+        moo: parseInt(document.getElementById('modal_moo').value) || 0, pid_vhv: document.getElementById('modal_pid_อสม').value.trim(), community: 'ชุมชนโทกหัวช้าง'
       };
       toggleLoaderDisplay(true);
       try {
         if(uid === "") {
           const { data: allUsers } = await db.from('users').select('id');
           const maxId = allUsers ? allUsers.reduce((max, u) => u.id > max ? u.id : max, 0) : 0;
-          payload.id = maxId + 1;
-          await db.from('users').insert([payload]);
+          payload.id = maxId + 1; await db.from('users').insert([payload]);
         } else {
           await db.from('users').update(payload).eq('id', uid);
         }
@@ -1288,33 +1263,21 @@
       if(action === 'DELETE') {
         Swal.fire({ title: 'ยืนยันการลบระเบียบบัญชีนี้?', text: "เมื่อยืนยันแล้ว บัญชี อสม. ดังกล่าวจะไม่สามารถเข้าสู่ระบบได้อีกต่อไป!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ลบข้อมูล' }).then(async (result) => {
           if (result.isConfirmed) {
-            toggleLoaderDisplay(true);
-            await db.from('users').delete().eq('id', userId);
+            toggleLoaderDisplay(true); await db.from('users').delete().eq('id', userId);
             toggleLoaderDisplay(false); fetchUserAccountsFromServer(); Swal.fire('ถูกลบแล้ว!', '', 'success');
           }
         });
       }
     }
 
-    // 🧾 8. คลังรายงานบันทึกคัดกรอง (ดึงข้อมูลบันทึกทั้งหมดตรงๆ จากตาราง screening)
     async function fetchScreeningReportDataFromServer() {
       toggleLoaderDisplay(true);
       try {
         const { data: records } = await db.from('screening').select('*');
         toggleLoaderDisplay(false);
         masterReportList = (records || []).map(r => ({
-          pid: r.citizen_id,
-          name: r.name,
-          date: r.date,
-          weight: r.weight,
-          height: r.height,
-          waist: r.waist,
-          sbp: r.bp_sys,
-          dbp: r.bp_dia,
-          bsl: r.fbs,
-          smoking: r.smoking,
-          alcohol: r.alcohol,
-          exercise: r.exercise
+          pid: r.citizen_id, name: r.name, date: r.date, weight: r.weight, height: r.height, waist: r.waist,
+          sbp: r.bp_sys, dbp: r.bp_dia, bsl: r.fbs, smoking: r.smoking, alcohol: r.alcohol, exercise: r.exercise
         }));
         const maxPage = Math.ceil(masterReportList.length / rowsPerPageLimit) || 1;
         reportCurrentPage = Math.max(1, Math.min(reportCurrentPage, maxPage));
@@ -1371,7 +1334,7 @@
     function executeFallbackDownloadMechanism(canvas, dateNow) {
       const imgBase64Uri = canvas.toDataURL("image/png"); const downloadAnchor = document.createElement('a');
       downloadAnchor.download = `บัตรแนะนำสุขภาพ_SmartNCDCare_${dateNow.getTime()}.png`; downloadAnchor.href = imgBase64Uri; downloadAnchor.click();
-      Swal.fire({ icon: 'success', title: 'ดาวน์โหลดภาพสำรองสำเร็จ', text: 'ระบบทำการเซฟภาพลงในเครื่องให้แทนโดยอัตโนมัติ สามารถส่งต่อเข้าไลน์กลุ่มได้ทันที ปลอดภัยตามกฎหมาย PDPA', confirmButtonColor: '#0284c7' });
+      Swal.fire({ icon: 'success', title: 'ดาวน์โหลดภาพสำรองสำเร็จ', text: 'ระบบทำการเซฟภาพลงในเครื่องให้แทนโดยอัตโนมัติ', confirmButtonColor: '#0284c7' });
     }
 
     function executeExportTargetMgToExcel() {
@@ -1391,8 +1354,122 @@
       setTimeout(() => { window.print(); renderTargetMgTable(); }, 500);
     }
 
-    function executeProcessingCsvUploadToServer() {
-      Swal.fire({ title: 'ฟังก์ชันนี้ถูกระงับชั่วคราวบน Cloud', text: 'กรุณาติดต่อผู้พัฒนาส่วนกลางเพื่อเปิดสิทธิ์นำเข้าไฟล์ CSV ลงฐานข้อมูล Supabase', icon: 'info' });
+    // 🌐 ฟังก์ชันแปลงโครงสร้าง Text CSV เป็น JSON Array บนเว็บบราวเซอร์ของ Client
+    function convertCsvTextToJsonArray(textString) {
+      const lines = textString.split(/\r?\n/); if (lines.length === 0) return [];
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, ''));
+      const parsedArray = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim(); if (!line) continue;
+        const columns = line.split(',').map(c => c.trim().replace(/^["']|["']$/g, ''));
+        const rowObj = {};
+        headers.forEach((header, index) => { rowObj[header] = columns[index] || ''; });
+        parsedArray.push(rowObj);
+      }
+      return parsedArray;
+    }
+
+    // 📥 1 & 2. ⚡ ฟังก์ชันนำเข้า CSV สู่ Supabase (สลับสิทธิ์ระหว่างตารางประชากร หรือบัญชีผู้ใช้งาน อสม.)
+    async function executeProcessingCsvUploadToServer() {
+      const fileInput = document.getElementById('inputCsvTargetFile');
+      if (!fileInput || fileInput.files.length === 0) { 
+        Swal.fire({ icon: 'warning', title: 'ยังไม่ได้เลือกไฟล์', text: 'กรุณาเลือกไฟล์เอกสารในรูปแบบนามสกุล .csv ก่อนกดยืนยันคำสั่งครับ' }); return; 
+      }
+      
+      const selectedCsvType = document.querySelector('input[name="csvTypeRadio"]:checked').value;
+      const csvFile = fileInput.files[0]; const fileReader = new FileReader(); 
+      toggleLoaderDisplay(true);
+      
+      fileReader.onload = async function(event) {
+        try {
+          const textRawContent = event.target.result;
+          const jsonBatchArray = convertCsvTextToJsonArray(textRawContent);
+          
+          if (jsonBatchArray.length === 0) { throw new Error("ไฟล์ CSV ว่างเปล่าหรือโครงสร้างไม่ถูกต้อง"); }
+
+          if (selectedCsvType === 'users') {
+            // โหมดอัปโหลดและเขียนทับข้อมูลบัญชีผู้ใช้ระบบ (ตาราง users)
+            const typedData = jsonBatchArray.map(u => ({
+              id: parseInt(u.id), username: u.username, password: u.password, full_name: u.full_name,
+              role: u.role || 'user', moo: parseInt(u.moo) || 0, pid_vhv: u.pid_vhv || '', community: u.community || 'ชุมชนโทกหัวช้าง'
+            }));
+            
+            const { error: upsertErr } = await db.from('users').upsert(typedData);
+            if (upsertErr) throw upsertErr;
+            
+            Swal.fire({ icon: 'success', title: 'นำเข้าบัญชี อสม. สำเร็จ!', text: `อัปเดต/เพิ่มรายชื่อผู้ใช้งานตาราง users จำนวน ${typedData.length} รายการเรียบร้อย` });
+          } else {
+            // โหมดอัปโหลดและเขียนทับข้อมูลประชากรเป้าหมาย (ตาราง data)
+            const typedData = jsonBatchArray.map(p => ({
+              pid: parseInt(p.pid), full_name: p.full_name, age: parseInt(p.age) || 0, gender: p.gender || 'ชาย',
+              house_no: p.house_no || '', moo: parseInt(p.moo) || 0, vhv_name: p.vhv_name || '', vhv_pid: p.vhv_pid || '',
+              area_status: p.area_status || 'อยู่ในพื้นที่'
+            }));
+
+            const { error: upsertErr } = await db.from('data').upsert(typedData);
+            if (upsertErr) throw upsertErr;
+
+            Swal.fire({ icon: 'success', title: 'นำเข้าข้อมูลเป้าหมายสำเร็จ!', text: `อัปเดต/เพิ่มรายชื่อประชากรเข้าสู่ตาราง data จำนวน ${typedData.length} รายการเรียบร้อย` });
+          }
+          fileInput.value = "";
+        } catch (err) {
+          Swal.fire({ icon: 'error', title: 'การนำเข้าล้มเหลว', text: 'ตรวจพบข้อผิดพลาด: ' + err.message });
+        } finally { toggleLoaderDisplay(false); }
+      };
+      fileReader.readAsText(csvFile, "UTF-8");
+    }
+
+    // 🗑️ 3. ⚡ คำสั่งล้างระบบประวัติผลคัดกรองทั้งหมด (`screening`) เพื่อเคลียร์รอบปีงบประมาณใหม่
+    async function executeClearScreeningDatabaseAction() {
+      Swal.fire({
+        title: 'ยืนยันการรีเซ็ตล้างฐานข้อมูล?',
+        text: "🚨 คำเตือนสำคัญ: คำสั่งนี้จะทำการล้างประวัติการคัดกรองสัญญาณชีพของปีนี้ทั้งหมดออกจากตาราง screening เพื่อเคลียร์ฐานข้อมูลให้ว่างเปล่าพร้อมรับปีงบประมาณใหม่ ข้อมูลเดิมจะสูญหายถาวร!",
+        icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#64748b',
+        confirmButtonText: 'ใช่, ฉันต้องการล้างประวัติคัดกรอง', cancelButtonText: 'ยกเลิก'
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          toggleLoaderDisplay(true);
+          try {
+            // ลบทุกแถวในตาราง screening
+            const { error: delErr } = await db.from('screening').delete().neq('id', 'all_clear_trigger');
+            if (delErr) throw delErr;
+
+            // รีเซ็ตล้างค่าผลตรวจเก่าที่ฝังอยู่ในตารางประชากร data คืนค่าสู่ค่าว่างเริ่มต้น
+            const { error: updateErr } = await db.from('data').update({
+              screening_date: null, weight: null, height: null, waist: null, sbp: null, dbp: null, bsl: null,
+              interpretation_ht: null, interpretation_dm: null
+            }).neq('pid', 0);
+            if (updateErr) throw updateErr;
+
+            Swal.fire({ icon: 'success', title: 'ระบบล้างฐานข้อมูลเสร็จสิ้น', text: 'ล้างข้อมูลประวัติและเตรียมระบบรับการคัดกรองรอบใหม่เรียบร้อยแล้วครับ' });
+          } catch (err) {
+            Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message });
+          } finally { toggleLoaderDisplay(false); }
+        }
+      });
+    }
+
+    // 🗑️ 4. ⚡ คำสั่งล้างรายชื่อประชากรเป้าหมายในพื้นที่ออกทั้งหมด (`data`) สำหรับเตรียมเปลี่ยนโครงสร้างปีใหม่
+    async function executeClearTargetDatabaseAction() {
+      Swal.fire({
+        title: 'ยืนยันการล้างรายชื่อเป้าหมาย?',
+        text: "🚨 คำเตือนขั้นเด็ดขาด: คำสั่งนี้จะล้างทำลายรายชื่อประชากรทั้งหมดออกจากตาราง data ทันที! อสม. จะไม่เห็นรายชื่อประชาชนใดๆ ในระบบจนกว่าแอดมินจะนำเข้าไฟล์ CSV ชุดใหม่เข้าไปทดแทน!",
+        icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#64748b',
+        confirmButtonText: 'ใช่, ฉันต้องการล้างรายชื่อประชากรทั้งหมด', cancelButtonText: 'ยกเลิก'
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          toggleLoaderDisplay(true);
+          try {
+            const { error: delErr } = await db.from('data').delete().neq('pid', 0);
+            if (delErr) throw delErr;
+
+            Swal.fire({ icon: 'success', title: 'ล้างข้อมูลเป้าหมายสำเร็จ', text: 'รายชื่อประชากรในตาราง data ถูกเคลียร์ลบเป็นช่องว่างคลีน 100% แล้วครับ' });
+          } catch (err) {
+            Swal.fire({ icon: 'error', title: 'ทำรายการไม่สำเร็จ', text: err.message });
+          } finally { toggleLoaderDisplay(false); }
+        }
+      });
     }
   </script>
 </body>
