@@ -254,7 +254,7 @@
                 <div class="row g-2"><div class="col-md-9"><input type="url" id="inputAgencyLogoUrl" class="form-control form-control-lg fs-5" placeholder="วางลิงก์ URL รูปภาพโลโก้..."></div><div class="col-md-3"><button class="btn btn-info btn-lg fs-4 fw-bold w-100 text-white" onclick="executeSaveLogoConfig()">บันทึกโลโก้</button></div></div>
               </div>
               <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2"><h4 class="fw-bold m-0">รายชื่อผู้ใช้งานระบบคัดกรองทั้งหมด</h4><button class="btn btn-success btn-lg fs-4 fw-bold rounded-pill px-4" onclick="openAddUserModal()">เพิ่มบัญชี อสม. ใหม่</button></div>
-              <div class="card card-container-panel p-0 table-responsive"><table class="table table-hover align-middle mb-0 text-nowrap mobile-card-table"><thead class="table-dark fs-4"><tr><th>รหัสผู้ใช้</th><th>ชื่อผู้ใช้</th><th>รหัสผ่าน</th><th>สิทธิ์ระบบ</th><th>ชื่อ - นามสกุล</th><th>หมู่ที่</th><th class="text-center">จัดการคำสั่ง</th></tr></thead><tbody id="usersTableBody" class="fs-4 fw-bold text-dark"></tbody></table></div>
+              <div class="card card-container-panel p-0 table-responsive"><table class="table table-hover align-middle mb-0 text-nowrap mobile-card-table"><thead class="table-dark fs-4"><tr><th>รหัสผู้ใช้</th><th>ชื่อผู้ใช้</th><th>รหัสผ่าน</th><th>สิทธิ์ระบบ</th><th>ชื่อ - นามสกุล</th><th>หมู่ที่ / ชุมชน</th><th class="text-center">จัดการคำสั่ง</th></tr></thead><tbody id="usersTableBody" class="fs-4 fw-bold text-dark"></tbody></table></div>
             </div>
 
             <!-- 7. หน้าคลังทะเบียนรายงานรายละเอียดสุขภาพทั้งหมด -->
@@ -359,6 +359,30 @@
               <div class="col-md-6"><label class="form-label fw-bold fs-5">สิทธิ์ระบบ</label><select id="modal_type" class="form-select form-select-lg fs-4 fw-bold"><option value="user">user (อสม.)</option><option value="staff">staff (สตาฟฟ์)</option><option value="admin">admin (แอดมิน)</option></select></div>
               <div class="col-md-6"><label class="form-label fw-bold fs-5">หมู่ที่</label><input type="number" id="modal_moo" class="form-control form-control-lg fs-4 fw-bold" required></div>
               <div class="col-md-6"><label class="form-label fw-bold fs-5">เลขประจำตัว PID อสม.</label><input type="text" id="modal_pid_อสม" class="form-control form-control-lg fs-4 fw-bold" required></div>
+              
+              <!-- เพิ่มช่องเลือกชุมชนย่อยตามฐานข้อมูลจริง (เพิ่มตามคำขอ) -->
+              <div class="col-md-6">
+                <label class="form-label fw-bold fs-5">เลือกชุมชนผู้รับผิดชอบ</label>
+                <select id="modal_community" class="form-select form-select-lg fs-4 fw-bold">
+                  <option value="">-- ไม่มี / ไม่ระบุชุมชน --</option>
+                  <option value="ชุมชนบ้านป่าขาม">ชุมชนบ้านป่าขาม</option>
+                  <option value="ชุมชนลำปางคูณ">ชุมชนลำปางคูณ</option>
+                  <option value="ชุมชนเหล่าบุญเกิด">ชุมชนเหล่าบุญเกิด</option>
+                  <option value="ชุมชนสันติภาพ">ชุมชนสันติภาพ</option>
+                  <option value="ชุมชนธนวรรณ">ชุมชนธนวรรณ</option>
+                  <option value="ชุมชนโทกหัวช้าง">ชุมชนโทกหัวช้าง</option>
+                  <option value="ชุมชนผาลาด">ชุมชนผาลาด</option>
+                  <option value="ชุมชนอิ๋วเมี่ยน">ชุมชนอิ๋วเมี่ยน</option>
+                  <option value="ชุมชนหนองปล้อง">ชุมชนหนองปล้อง</option>
+                  <option value="ชุมชนศรีพูนทรัพย์">ชุมชนศรีพูนทรัพย์</option>
+                  <option value="ชุมชนกอกชุม">ชุมชนกอกชุม</option>
+                  <option value="ชุมชนจิตต์อารีย์">ชุมชนจิตต์อารีย์</option>
+                  <option value="ชุมชนหนองห้า">ชุมชนหนองห้า</option>
+                  <option value="ชุมชนหนองวัวเฒ่า">ชุมชนหนองวัวเฒ่า</option>
+                  <option value="ชุมชนป่าแลว 2">ชุมชนป่าแลว 2</option>
+                  <option value="ชุมชนหัวทุ่งสามัคคี">ชุมชนหัวทุ่งสามัคคี</option>
+                </select>
+              </div>
             </div>
             <div class="text-end mt-4 border-top pt-3"><button type="button" class="btn btn-secondary btn-lg fs-4 me-2" data-bs-dismiss="modal">ยกเลิก</button><button type="submit" class="btn btn-primary btn-lg fs-4 fw-bold px-4">บันทึกข้อมูล</button></div>
           </form>
