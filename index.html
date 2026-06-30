@@ -219,10 +219,25 @@
               <div class="card card-container-panel p-0 table-responsive mt-3"><table class="table table-bordered table-striped align-middle mb-0 mobile-card-table"><thead class="table-dark fs-5 text-white"><tr><th>ดัชนีชี้วัด</th><th>ช่วงระดับเกณฑ์</th><th>ผลการวิเคราะห์</th><th>คำพูดแนวทางบอกต่อประชาชน</th></tr></thead><tbody id="healthRulesTableBody" class="fs-5 text-dark fw-bold"></tbody></table></div>
             </div>
 
-            <!-- 4. หน้าจอสรุปผลงานความคืบหน้า อสม. -->
+            <!-- 4. หน้าจอสรุปผลงานความคืบหน้า อสม. (ปรับปรุงคอลัมน์หมู่ที่ / ชุมชน) -->
             <div id="view-window-perf" class="sub-view-panel d-none">
               <h2 class="fw-black text-dark m-0 pt-2">4. รายงานความคืบหน้าสรุปผลงานการคัดกรอง อสม.</h2>
-              <div class="card card-container-panel p-0 table-responsive mt-3"><table class="table table-bordered table-hover align-middle mb-0 text-nowrap mobile-card-table"><thead class="table-dark fs-4 text-white"><tr><th>ชื่อ อสม.</th><th>หมู่ที่</th><th>เป้าหมายทั้งหมด</th><th>คัดกรองแล้ว</th><th>คงเหลือ</th><th>ร้อยละผลงาน</th></tr></thead><tbody id="vhvPerformanceTableBody" class="fs-4 fw-bold text-dark"></tbody></table><div class="p-3 d-flex justify-content-between align-items-center bg-light border-top flex-wrap gap-2"><span class="fs-4 text-muted fw-bold" id="labelPerfPaginationInfo">-</span><nav><ul class="pagination pagination-lg mb-0" id="paginationPerfWrapper"></ul></nav></div></div>
+              <div class="card card-container-panel p-0 table-responsive mt-3">
+                <table class="table table-bordered table-hover align-middle mb-0 text-nowrap mobile-card-table">
+                  <thead class="table-dark fs-4 text-white">
+                    <tr>
+                      <th>ชื่อ อสม.</th>
+                      <th>หมู่ที่ / ชุมชน</th>
+                      <th>เป้าหมายทั้งหมด</th>
+                      <th>คัดกรองแล้ว</th>
+                      <th>คงเหลือ</th>
+                      <th>ร้อยละผลงาน</th>
+                    </tr>
+                  </thead>
+                  <tbody id="vhvPerformanceTableBody" class="fs-4 fw-bold text-dark"></tbody>
+                </table>
+                <div class="p-3 d-flex justify-content-between align-items-center bg-light border-top flex-wrap gap-2"><span class="fs-4 text-muted fw-bold" id="labelPerfPaginationInfo">-</span><nav><ul class="pagination pagination-lg mb-0" id="paginationPerfWrapper"></ul></nav></div>
+              </div>
             </div>
 
             <!-- 5. หน้าแผงจัดการประชากรเป้าหมาย -->
@@ -360,7 +375,7 @@
               <div class="col-md-6"><label class="form-label fw-bold fs-5">หมู่ที่</label><input type="number" id="modal_moo" class="form-control form-control-lg fs-4 fw-bold" required></div>
               <div class="col-md-6"><label class="form-label fw-bold fs-5">เลขประจำตัว PID อสม.</label><input type="text" id="modal_pid_อสม" class="form-control form-control-lg fs-4 fw-bold" required></div>
               
-              <!-- เพิ่มช่องเลือกชุมชนย่อยตามฐานข้อมูลจริง (เพิ่มตามคำขอ) -->
+              <!-- ช่องเลือกชุมชนย่อย -->
               <div class="col-md-6">
                 <label class="form-label fw-bold fs-5">เลือกชุมชนผู้รับผิดชอบ</label>
                 <select id="modal_community" class="form-select form-select-lg fs-4 fw-bold">
