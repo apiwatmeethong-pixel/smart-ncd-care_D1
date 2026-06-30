@@ -1384,31 +1384,38 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
       }
       setTimeout(() => { window.print(); renderTargetMgTable(); }, 500);
     }
+// =================================================================
+// 📥 [ชุดสมบูรณ์] ระบบแกะไฟล์และนำเข้า CSV เข้าสู่ฐานข้อมูล Supabase
+// =================================================================
 
-    // 🌐 ฟังก์ชันแปลงโครงสร้าง Text CSV เป็น JSON Array บนเว็บบราวเซอร์ของ Client
-    function convertCsvTextToJsonArray(textString) {
-      const lines = textString.split(/\r?\n/); if (lines.length === 0) return [];
-      const headers = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, ''));
-      const parsedArray = [];
-      
-      for (let i = 1; i < lines.length; i++) {
-        const line = lines[i].trim(); if (!line) continue;
-        const columns = line.split(',').map(c => c.trim().replace(/^["']|["']$/g, ''));
-        const rowObj = {};
-        headers.forEach((header, index) => { rowObj[header] = columns[index] || ''; });
-        parsedArray.push(rowObj);
-      }
-      return parsedArray;
-    }
+// 🌐 1. ฟังก์ชันแกะเนื้อหา Text CSV แปลงเป็น JSON Array (ห้ามขาด)
+function convertCsvTextToJsonArray(textString) {
+  const lines = textString.split(/\r?\n/); 
+  if (lines.length === 0 || !lines[0].trim()) return [];
+  
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, ''));
+  const parsedArray = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim(); 
+    if (!line) continue;
+    const columns = line.split(',').map(c => c.trim().replace(/^["']|["']$/g, ''));
+    const rowObj = {};
+    headers.forEach((header, index) => { 
+      rowObj[header] = columns[index] !== undefined ? columns[index] : ''; 
+    });
+    parsedArray.push(rowObj);
+  }
+  return parsedArray;
+}
 
-    // 🔍 1. ฟังก์ชันตัวช่วยดึงค่าจาก CSV แบบอัจฉริยะ (ไม่สนใจพิมพ์เล็ก-ใหญ่ / รองรับทั้งไทย-อังกฤษ)
+// 🔍 2. ฟังก์ชันช่วยค้นหาคีย์คอลลัมน์แบบยืดหยุ่น (ไม่สนใจพิมพ์เล็ก-ใหญ่ / ไทย-อังกฤษ)
 function getCsvValueRobust(rowObj, acceptableKeys) {
   const rowKeys = Object.keys(rowObj);
   for (let key of rowKeys) {
     const cleanKey = key.trim().toLowerCase();
     for (let target of acceptableKeys) {
       const cleanTarget = target.toLowerCase();
-      // แมปถ้าชื่อตรงกัน หรือชื่อส่วนใดส่วนหนึ่งตรงกัน (เช่น weight หรือ น้ำหนัก)
       if (cleanKey === cleanTarget || cleanKey.includes(cleanTarget)) {
         return rowObj[key];
       }
@@ -1417,24 +1424,20 @@ function getCsvValueRobust(rowObj, acceptableKeys) {
   return undefined;
 }
 
-// 📅 2. ฟังก์ชันแปลงวันที่อัจฉริยะ ดักจับกับดัก Excel (รองรับ 19/11/2025 และ 2025-11-19)
+// 📅 3. ฟังก์ชันจัดฟอร์แมตวันที่เกิดและวันที่ตรวจให้เป็นมาตรฐาน SQL (YYYY-MM-DD)
 function parseDateRobust(rawDate) {
-  if (!rawDate || rawDate === '-' || rawDate.trim() === '') return null;
-  let cleanDate = rawDate.trim();
+  if (!rawDate || rawDate === '-' || rawDate.toString().trim() === '') return null;
+  let cleanDate = rawDate.toString().trim();
   
-  // ถ้าเป็นรูปแบบ YYYY-MM-DD อยู่แล้ว ให้ส่งออกไปได้เลย
   if (/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) return cleanDate;
   
-  // แยกส่วนประกอบด้วย / หรือ -
   const parts = cleanDate.split(/[\/\-]/);
   if (parts.length === 3) {
-    // กรณีปีขึ้นก่อน YYYY/MM/DD
     if (parts[0].length === 4) {
       let year = parseInt(parts[0]);
       if (year > 2500) year -= 543;
       return `${year}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
     }
-    // กรณีวันขึ้นก่อน DD/MM/YYYY
     if (parts[2].length === 4 || parts[2].length === 2) {
       let year = parseInt(parts[2]);
       if (parts[2].length === 2) year += 2000;
@@ -1445,22 +1448,30 @@ function parseDateRobust(rawDate) {
   return null;
 }
 
-// 🔢 3. ฟังก์ชันแปลงตัวเลขนิรภัย ป้องกันค่า NaN
+// 🔢 4. ฟังก์ชันกรองและแปลงค่าตัวเลขเซฟตี้ ป้องกันระบบรวน
 function parseNumberRobust(value, isFloat = false) {
   if (value === undefined || value === null || value === '-' || value.toString().trim() === '') return null;
   const parsed = isFloat ? parseFloat(value) : parseInt(value);
   return isNaN(parsed) ? null : parsed;
 }
 
-// 📥 4. ฟังก์ชันหลักนำเข้าข้อมูลอัปเกรดประสิทธิภาพสูงสุด
+// 🚀 5. ฟังก์ชันหลักประจำปุ่มกดนำเข้าข้อมูล
 async function executeProcessingCsvUploadToServer() {
   const fileInput = document.getElementById('inputCsvTargetFile');
   if (!fileInput || fileInput.files.length === 0) { 
-    Swal.fire({ icon: 'warning', title: 'ยังไม่ได้เลือกไฟล์', text: 'กรุณาเลือกไฟล์เอกสารในรูปแบบนามสกุล .csv ก่อนกดยืนยันคำสั่งครับ' }); return; 
+    Swal.fire({ icon: 'warning', title: 'ยังไม่ได้เลือกไฟล์', text: 'กรุณาเลือกไฟล์เอกสารในรูปแบบนามสกุล .csv ก่อนกดยืนยันคำสั่งครับ' }); 
+    return; 
   }
   
-  const selectedCsvType = document.querySelector('input[name="csvTypeRadio"]:checked').value;
-  const csvFile = fileInput.files[0]; const fileReader = new FileReader(); 
+  const radioEl = document.querySelector('input[name="csvTypeRadio"]:checked');
+  if (!radioEl) {
+    Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่พบประเภทข้อมูลที่เลือก กรุณารีเฟรชหน้าเว็บ' });
+    return;
+  }
+  
+  const selectedCsvType = radioEl.value;
+  const csvFile = fileInput.files[0]; 
+  const fileReader = new FileReader(); 
   toggleLoaderDisplay(true);
   
   fileReader.onload = async function(event) {
@@ -1468,7 +1479,9 @@ async function executeProcessingCsvUploadToServer() {
       const textRawContent = event.target.result;
       const jsonBatchArray = convertCsvTextToJsonArray(textRawContent);
       
-      if (jsonBatchArray.length === 0) { throw new Error("ไฟล์ CSV ว่างเปล่าหรือโครงสร้างไม่ถูกต้อง"); }
+      if (jsonBatchArray.length === 0) { 
+        throw new Error("ไฟล์ CSV ว่างเปล่า หรือโครงสร้างแถวหัวตารางไม่ถูกต้อง"); 
+      }
 
       if (selectedCsvType === 'users') {
         const typedData = jsonBatchArray
@@ -1487,7 +1500,7 @@ async function executeProcessingCsvUploadToServer() {
           })
           .filter(u => u.id !== null);
 
-        if (typedData.length === 0) throw new Error("ไม่พบข้อมูลบัญชีผู้ใช้ที่ถูกต้อง");
+        if (typedData.length === 0) throw new Error("ไม่พบข้อมูลบัญชีผู้ใช้ที่ถูกต้องในไฟล์ CSV");
         
         const uniqueUsersMap = new Map();
         typedData.forEach(item => uniqueUsersMap.set(item.id, item));
@@ -1502,15 +1515,13 @@ async function executeProcessingCsvUploadToServer() {
           .map(p => {
             const pidVal = parseNumberRobust(getCsvValueRobust(p, ['pid', 'เลขทะเบียน']));
             const rawScreenDate = getCsvValueRobust(p, ['screening_date', 'วันที่คัดกรอง']);
-            
-            // 🌟 ซูเปอร์แมปปิ้ง: ดักจับหัวตารางวันเกิดทุกรูปแบบที่เป็นไปได้ (ไม่ว่าจะตั้งชื่อว่าอะไรมาก็ตาม)
             const rawBirthDate = getCsvValueRobust(p, ['birth_date', 'วันเกิด', 'birthdate', 'birth date', 'วัน/เดือน/ปีเกิด', 'วัน เดือน ปีเกิด']);
             
             return {
               pid: pidVal, 
               full_name: getCsvValueRobust(p, ['full_name', 'ชื่อ-นามสกุล']), 
               gender: getCsvValueRobust(p, ['gender', 'เพศ']) || 'ชาย',
-              birth_date: parseDateRobust(rawBirthDate), // 🔥 ผ่านตัวแปลงฟอร์แมตวันที่นิรภัยให้อัตโนมัติ ป้องกันค่า NULL
+              birth_date: parseDateRobust(rawBirthDate), 
               age: parseNumberRobust(getCsvValueRobust(p, ['age', 'อายุ'])) || 0, 
               house_no: getCsvValueRobust(p, ['house_no', 'บ้านเลขที่']) || '', 
               moo: parseNumberRobust(getCsvValueRobust(p, ['moo', 'หมู่ที่'])) || 0, 
@@ -1543,15 +1554,18 @@ async function executeProcessingCsvUploadToServer() {
         const { error: upsertErr } = await db.from('data').upsert(finalUniqueData);
         if (upsertErr) throw upsertErr;
 
-        Swal.fire({ icon: 'success', title: 'นำเข้าข้อมูลเป้าหมายสำเร็จ!', text: `ระบบอัปเดตข้อมูลรวมถึงวันเกิดมาตรฐานและสัญญาณชีพเข้าตาราง data จำนวน ${finalUniqueData.length} รายการเสร็จสมบูรณ์แล้วครับ` });
+        Swal.fire({ icon: 'success', title: 'นำเข้าข้อมูลเป้าหมายสำเร็จ!', text: `ระบบอัปเดตข้อมูลรวมถึงวันเกิดสากลและสัญญาณชีพเข้าตาราง data จำนวน ${finalUniqueData.length} รายการเรียบร้อยครับ` });
       }
       fileInput.value = "";
     } catch (err) {
       Swal.fire({ icon: 'error', title: 'การนำเข้าล้มเหลว', text: 'ตรวจพบข้อผิดพลาด: ' + err.message });
-    } finally { toggleLoaderDisplay(false); }
+    } finally { 
+      toggleLoaderDisplay(false); 
+    }
   };
   fileReader.readAsText(csvFile, "UTF-8");
 }
+   
     // 🗑️ 3. ⚡ คำสั่งล้างระบบประวัติผลคัดกรองทั้งหมด (`screening`) เพื่อเคลียร์รอบปีงบประมาณใหม่
     async function executeClearScreeningDatabaseAction() {
       Swal.fire({
