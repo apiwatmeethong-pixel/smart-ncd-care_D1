@@ -498,7 +498,6 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkamN3c3d6b2RrZHpqZmtzbXFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NzM0OTAsImV4cCI6MjA5ODA0OTQ5MH0.lLgqwVakZMJqrj-YuR7sCAlqrMp5pSA-ayUMXuvF3ro'; 
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    // 🔒 เพิ่มฟิลด์เก็บข้อมูล หมู่ และ ชุมชน ของบัญชีที่ล็อกอินอยู่
     let activeVhvSession = { name: '', role: '', vhvId: '', logo: '', moo: 0, community: '' };
     let masterHealthRules = []; 
     let populationDataset = [];
@@ -601,7 +600,6 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
         const user = users[0]; const { data: rules } = await db.from('rules').select('*'); masterHealthRules = rules || [];
         failedLoginAttemptsCount = 0; const currentLogo = localStorage.getItem('agencyLogoUrl') || 'https://cdn-icons-png.flaticon.com/512/822/822118.png';
         
-        // 🔒 เก็บค่าความปลอดภัยระดับหมู่และชุมชนของผู้ใช้งานลงในเซสชันหน้าเว็บ[cite: 1]
         activeVhvSession = { 
           name: user.full_name, 
           role: user.role, 
@@ -644,7 +642,6 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
 
     async function fetchDashboardCountsFromServer() {
       try {
-        // 🔒 บังคับใช้สิทธิ์ล็อกรายหมู่และรายชุมชนสำหรับทั่ง staff และ user ในหน้าแดชบอร์ด
         const dataRows = await supabaseSelectAll('data', 'pid, vhv_pid, moo, community', (q) => { 
           if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') { 
             let query = q.eq('moo', activeVhvSession.moo);
@@ -685,7 +682,6 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
     async function fetchPopulationListFromServer() {
       toggleLoaderDisplay(true);
       try {
-        // 🔒 ล็อกความปลอดภัยรายหมู่/รายชุมชน สำหรับเมนูตารางคัดกรองสัญญาณชีพของ อสม. และสตาฟฟ์
         const dataRows = await supabaseSelectAll('data', '*', (q) => { 
           if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') { 
             let query = q.eq('moo', activeVhvSession.moo);
@@ -860,18 +856,15 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
       } catch (err) { toggleLoaderDisplay(false); Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message }); }
     }
 
-    // 🛠️ ปรับปรุง: พ่นชุดตารางเกณฑ์ดัชนีสุขภาพมาตรฐาน พร้อมแนบคีย์รอบเอวแยก ชาย/หญิง ตามรูปภาพ image_496d4f.png
     function renderHealthRulesTable() {
       const tbody = document.getElementById('healthRulesTableBody'); if (!tbody) return; tbody.innerHTML = '';
       
-      // พ่นเกณฑ์ที่ดึงจาก Database ตาราง rules
       masterHealthRules.forEach(r => { 
         if(['BMI','BP','FBS'].indexOf(r.category) !== -1) { 
           tbody.innerHTML += `<tr><td data-label="ดัชนีชี้วัด"><span class="badge bg-primary fs-5 px-3 py-2">${r.category}</span></td><td data-label="ช่วงระดับเกณฑ์" class="fs-4">ช่วงค่า: ${r.min_value} - ${r.max_value}</td><td data-label="ผลการวิเคราะห์" class="fs-4 text-dark fw-bold">${r.result}</td><td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">${r.advice}</td></tr>`; 
         } 
       });
 
-      // 🔥 เติมเกณฑ์รอบเอว ชาย/หญิง ตามตัวชี้วัดสาธารณสุขไทยที่ขาดหายไปลงท้ายตารางให้ครบถ้วน 100%
       tbody.innerHTML += `
         <tr>
           <td data-label="ดัชนีชี้วัด"><span class="badge bg-info fs-5 px-3 py-2">รอบเอว (ชาย)</span></td>
@@ -906,7 +899,6 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
         const { data: dataRows } = await db.from('data').select('vhv_name, moo, pid, community'); const { data: screenRows } = await db.from('screening').select('citizen_id');
         let vhvMap = {}; const screenedPids = screenRows ? screenRows.map(s => s.citizen_id.toString()) : [];
         
-        // 🔒 ล็อกสิทธิ์ความปลอดภัยรายหมู่/รายชุมชน ในหน้าคำนวณผลงาน อสม.
         let filteredDataRows = dataRows || [];
         if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') {
           filteredDataRows = filteredDataRows.filter(r => r.moo === activeVhvSession.moo && (!activeVhvSession.community || r.community === activeVhvSession.community));
@@ -932,7 +924,6 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
     async function fetchManagementTargetsFromServer() { 
       toggleLoaderDisplay(true); 
       try {
-        // 🔒 ล็อกความปลอดภัยรายหมู่/รายชุมชน บนแผงรายชื่อทะเบียนเป้าหมายประชากรหลัก (เมนูที่ 5)
         const records = await supabaseSelectAll('data', 'pid, full_name, age, house_no, moo, vhv_name, area_status, community', (q) => {
           if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') {
             let query = q.eq('moo', activeVhvSession.moo);
@@ -1038,7 +1029,6 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
     async function fetchScreeningReportDataFromServer() {
       toggleLoaderDisplay(true);
       try {
-        // 🔒 ล็อกสิทธิ์ความปลอดภัยรายหมู่/รายชุมชนสตาฟฟ์และอสม. ในการเข้าถึงคลังรายงานสรุปทั้งหมด (เมนูที่ 7)
         let allowedPids = [];
         if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') {
           const allowedDataRows = await supabaseSelectAll('data', 'pid', (q) => {
@@ -1190,11 +1180,11 @@ async function executeProcessingCsvUploadToServer() {
           .filter(p => p.pid !== null);
         if (typedData.length === 0) throw new Error("ไม่พบข้อมูลประชากรที่ถูกต้องในไฟล์ CSV");
         const uniqueDataMap = new Map(); typedData.forEach(item => uniqueDataMap.set(item.pid, item)); const finalUniqueData = Array.from(uniqueDataMap.values());
-        const { error: upsertErr } = await db.from('data').upsert(finalUniqueData); if (upsertErr) throw upsertErr;
+        const { error: upsertErr = await db.from('data').upsert(finalUniqueData); if (upsertErr) throw upsertErr;
         Swal.fire({ icon: 'success', title: 'นำเข้าข้อมูลเป้าหมายสำเร็จ!', text: `ระบบอัปเดตข้อมูลรวมถึงวันเกิดสากลและสัญญาณชีพเข้าตาราง data จำนวน ${finalUniqueData.length} รายการเรียบร้อยครับ` });
       }
       fileInput.value = "";
-    } catch (err) { Swal.fire({ icon: 'error', title: 'การนำเข้าล้มเหลว', text: 'ตรวจพบข้อผิดพลาด: ' + err.message }); } military: finally { toggleLoaderDisplay(false); }
+    } catch (err) { Swal.fire({ icon: 'error', title: 'การนำเข้าล้มเหลว', text: 'ตรวจพบข้อผิดพลาด: ' + err.message }); } finally { toggleLoaderDisplay(false); }
   }; fileReader.readAsText(csvFile, "UTF-8");
 }
    
