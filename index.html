@@ -400,7 +400,6 @@
               </div>
             </div>
 
-            <!-- 🛠️ เมนูที่ 8: ศูนย์บริการจัดการระบบและฐานข้อมูลสำหรับ Admin สูงสุด -->
             <div id="view-window-upload" class="sub-view-panel d-none">
               <h2 class="fw-black text-dark pt-2 m-0">8. ศูนย์บริการจัดการระบบและฐานข้อมูลสำหรับ Admin สูงสุด</h2>
               <p class="text-muted fs-4 mb-4">บริการจัดการล้างระบบ เขียนทับข้อมูลเป้าหมายประจำปีงบประมาณ และการอัปเดตรายชื่อบัญชีผู้เข้าใช้งาน อสม.</p>
@@ -426,7 +425,6 @@
                       * หมายเหตุ: การนำเข้าไฟล์ CSV จะทำการเขียนทับ/แทรกข้อมูลลงตาราง Supabase ของท่านทันที โปรดตรวจสอบชื่อหัวคอลัมน์แถวแรกสุดในไฟล์ CSV ให้ตรงตามชื่อคอลัมน์ของตารางเป้าหมายก่อนกดยืนยันคำสั่ง
                     </p>
                     
-                    <!-- 🛠️ แก้ไข: เพิ่มฟังก์ชันคำสั่งนำเข้าไฟล์เข้าสู่ตัวกระตุ้นปุ่มเรียบร้อยครับ -->
                     <button class="btn btn-primary btn-lg w-100 py-3 fs-3 fw-bold rounded-pill shadow" onclick="executeProcessingCsvUploadToServer()">
                       <i class="fa-solid fa-cloud-arrow-up me-2"></i> เริ่มกระบวนการนำเข้าไฟล์ข้อมูล
                     </button>
@@ -500,7 +498,8 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkamN3c3d6b2RrZHpqZmtzbXFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NzM0OTAsImV4cCI6MjA5ODA0OTQ5MH0.lLgqwVakZMJqrj-YuR7sCAlqrMp5pSA-ayUMXuvF3ro'; 
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let activeVhvSession = { name: '', role: '', vhvId: '', logo: '' };
+    // 🔒 เพิ่มฟิลด์เก็บข้อมูล หมู่ และ ชุมชน ของบัญชีที่ล็อกอินอยู่
+    let activeVhvSession = { name: '', role: '', vhvId: '', logo: '', moo: 0, community: '' };
     let masterHealthRules = []; 
     let populationDataset = [];
     let displayFilteredDataset = [];
@@ -601,7 +600,17 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
         }
         const user = users[0]; const { data: rules } = await db.from('rules').select('*'); masterHealthRules = rules || [];
         failedLoginAttemptsCount = 0; const currentLogo = localStorage.getItem('agencyLogoUrl') || 'https://cdn-icons-png.flaticon.com/512/822/822118.png';
-        activeVhvSession = { name: user.full_name, role: user.role, vhvId: user.pid_vhv, logo: currentLogo };
+        
+        // 🔒 เก็บค่าความปลอดภัยระดับหมู่และชุมชนของผู้ใช้งานลงในเซสชันหน้าเว็บ[cite: 1]
+        activeVhvSession = { 
+          name: user.full_name, 
+          role: user.role, 
+          vhvId: user.pid_vhv, 
+          logo: currentLogo,
+          moo: parseInt(user.moo) || 0,
+          community: user.community || ''
+        };
+        
         safetySetTextContent('sessionUserName', `คุณ ${user.full_name}`); safetySetTextContent('sessionUserRole', `สิทธิ์บัญชี: ${user.role} (รหัส อสม: ${user.pid_vhv || '-'})`);
         const headerLogo = document.getElementById('menuHeaderLogo'); if (headerLogo) headerLogo.src = currentLogo; safetySetInputValue('inputAgencyLogoUrl', currentLogo);
         if (user.role === 'admin') { document.querySelectorAll('.admin-staff-only').forEach(el => el.classList.remove('d-none')); document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('d-none')); } 
@@ -613,7 +622,7 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
       } catch (err) { toggleLoaderDisplay(false); Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message }); }
     }
 
-    function executeLogout() { activeVhvSession = { name: '', role: '', vhvId: '', logo: '' }; document.getElementById('loginForm').reset(); document.getElementById('mainInterface').classList.add('d-none'); document.getElementById('loginSection').classList.remove('d-none'); }
+    function executeLogout() { activeVhvSession = { name: '', role: '', vhvId: '', logo: '', moo: 0, community: '' }; document.getElementById('loginForm').reset(); document.getElementById('mainInterface').classList.add('d-none'); document.getElementById('loginSection').classList.remove('d-none'); }
 
     function compileSmartPaginationLinks(currentPage, totalItems, elementWrapperId, clickFunctionName) {
       const totalPages = Math.ceil(totalItems / rowsPerPageLimit) || 1; const wrapper = document.getElementById(elementWrapperId); if (!wrapper) return; wrapper.innerHTML = ''; if (totalPages <= 1) return;
@@ -635,10 +644,24 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
 
     async function fetchDashboardCountsFromServer() {
       try {
-        const dataRows = await supabaseSelectAll('data', 'pid, vhv_pid', (q) => { if (activeVhvSession.role === 'user') { return q.eq('vhv_pid', activeVhvSession.vhvId); } return q; });
+        // 🔒 บังคับใช้สิทธิ์ล็อกรายหมู่และรายชุมชนสำหรับทั่ง staff และ user ในหน้าแดชบอร์ด
+        const dataRows = await supabaseSelectAll('data', 'pid, vhv_pid, moo, community', (q) => { 
+          if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') { 
+            let query = q.eq('moo', activeVhvSession.moo);
+            if (activeVhvSession.community && activeVhvSession.community.trim() !== "") {
+              query = query.eq('community', activeVhvSession.community);
+            }
+            return query;
+          } 
+          return q; 
+        });
         const assignedCount = dataRows ? dataRows.length : 0; const assignedPids = dataRows ? dataRows.map(r => r.pid.toString()) : [];
         const screenRows = await supabaseSelectAll('screening', '*');
-        let filteredScreenings = screenRows || []; if (activeVhvSession.role === 'user') { filteredScreenings = filteredScreenings.filter(s => assignedPids.includes(s.citizen_id.toString()) || s.operator === activeVhvSession.name); }
+        
+        let filteredScreenings = screenRows || []; 
+        if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') { 
+          filteredScreenings = filteredScreenings.filter(s => assignedPids.includes(s.citizen_id.toString())); 
+        }
         let normalCount = 0; let riskCount = 0; let alertCount = 0; let totalSmokerCount = 0; let totalDrinkerCount = 0;
         const tbody = document.getElementById('dashboardSummaryTableBody'); if (tbody) tbody.innerHTML = '';
         filteredScreenings.forEach(item => {
@@ -662,12 +685,21 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
     async function fetchPopulationListFromServer() {
       toggleLoaderDisplay(true);
       try {
-        const dataRows = await supabaseSelectAll('data', '*', (q) => { if (activeVhvSession.role === 'user') { return q.eq('vhv_pid', activeVhvSession.vhvId); } return q; });
+        // 🔒 ล็อกความปลอดภัยรายหมู่/รายชุมชน สำหรับเมนูตารางคัดกรองสัญญาณชีพของ อสม. และสตาฟฟ์
+        const dataRows = await supabaseSelectAll('data', '*', (q) => { 
+          if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') { 
+            let query = q.eq('moo', activeVhvSession.moo);
+            if (activeVhvSession.community && activeVhvSession.community.trim() !== "") {
+              query = query.eq('community', activeVhvSession.community);
+            }
+            return query;
+          } 
+          return q; 
+        });
         const screenRows = await supabaseSelectAll('screening', '*');
         populationDataset = (dataRows || []).map(r => {
           const s = (screenRows || []).find(sc => sc.citizen_id.toString() === r.pid.toString());
           let statusStr = "ยังไม่ได้คัดกรองปีนี้"; if (s) { statusStr = s.ncd_status; }
-          // ดึงค่าชุมชนที่มีอยู่จริงมาแสดงผล (หากไม่มีให้ขีดแดช)
           let communityStr = r.community && r.community.trim() !== "" ? ` ชุมชน${r.community}` : "";
           return {
             pid: r.pid, name: r.full_name, age: r.age, gender: r.gender,
@@ -736,7 +768,6 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
       document.querySelectorAll('input[type="radio"]').forEach(el => { el.removeEventListener('change', runClinicalEvaluationEngine); el.addEventListener('change', runClinicalEvaluationEngine); });
     }
 
-    // 🛠️ ปรับระบบแปรผล: ปรับระบบคำนวณและประเมินดัชนีรอบเอวแยก ชาย/หญิง ตามมาตรฐาน สสส. / สธ.
     function runClinicalEvaluationEngine() {
       const wEl = document.getElementById('in_weight'); const hEl = document.getElementById('in_height'); const sbpEl = document.getElementById('in_sbp'); const dbpEl = document.getElementById('in_dbp'); const bslEl = document.getElementById('in_bsl'); const waistEl = document.getElementById('in_waist');
       const ageEl = document.getElementById('form_age'); const genderEl = document.getElementById('form_gender'); if (!wEl || !hEl || !sbpEl || !dbpEl || !bslEl || !waistEl) return;
@@ -764,7 +795,6 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
       safetySetTextContent('rt-bsl', dmStat); safetySetTextContent('share-bsl', dmStat);
       const dmBadge = document.getElementById('rt-bsl'); if (dmBadge) dmBadge.className = `badge fs-5 px-3 py-2 ${dmColor}`;
 
-      // 🛠️ กำหนดรอบเอวอ้วนลงพุง (ชาย > 90 ซม. / หญิง > 80 ซม.)
       let waistLimit = (gender === 'ชาย' || gender === 'Male') ? 90 : 80;
       let isObese = (waist > waistLimit);
 
@@ -830,23 +860,63 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
       } catch (err) { toggleLoaderDisplay(false); Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message }); }
     }
 
+    // 🛠️ ปรับปรุง: พ่นชุดตารางเกณฑ์ดัชนีสุขภาพมาตรฐาน พร้อมแนบคีย์รอบเอวแยก ชาย/หญิง ตามรูปภาพ image_496d4f.png
     function renderHealthRulesTable() {
       const tbody = document.getElementById('healthRulesTableBody'); if (!tbody) return; tbody.innerHTML = '';
-      masterHealthRules.forEach(r => { if(['BMI','BP','FBS'].indexOf(r.category) !== -1) { tbody.innerHTML += `<tr><td data-label="ดัชนีชี้วัด"><span class="badge bg-primary fs-5 px-3 py-2">${r.category}</span></td><td data-label="ช่วงระดับเกณฑ์" class="fs-4">ช่วงค่า: ${r.min_value} - ${r.max_value}</td><td data-label="ผลการวิเคราะห์" class="fs-4 text-dark fw-bold">${r.result}</td><td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">${r.advice}</td></tr>`; } });
+      
+      // พ่นเกณฑ์ที่ดึงจาก Database ตาราง rules
+      masterHealthRules.forEach(r => { 
+        if(['BMI','BP','FBS'].indexOf(r.category) !== -1) { 
+          tbody.innerHTML += `<tr><td data-label="ดัชนีชี้วัด"><span class="badge bg-primary fs-5 px-3 py-2">${r.category}</span></td><td data-label="ช่วงระดับเกณฑ์" class="fs-4">ช่วงค่า: ${r.min_value} - ${r.max_value}</td><td data-label="ผลการวิเคราะห์" class="fs-4 text-dark fw-bold">${r.result}</td><td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">${r.advice}</td></tr>`; 
+        } 
+      });
+
+      // 🔥 เติมเกณฑ์รอบเอว ชาย/หญิง ตามตัวชี้วัดสาธารณสุขไทยที่ขาดหายไปลงท้ายตารางให้ครบถ้วน 100%
+      tbody.innerHTML += `
+        <tr>
+          <td data-label="ดัชนีชี้วัด"><span class="badge bg-info fs-5 px-3 py-2">รอบเอว (ชาย)</span></td>
+          <td data-label="ช่วงระดับเกณฑ์" class="fs-4">ไม่เกิน 90 เซนติเมตร (หรือ ไม่เกิน ส่วนสูง ÷ 2)</td>
+          <td data-label="ผลการวิเคราะห์" class="fs-4 text-success fw-bold">ปกติ</td>
+          <td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">รอบเอวอยู่ในเกณฑ์ปลอดภัย ดัชนีรอบเอวสมส่วน ไม่มีความเสี่ยงภาวะอ้วนลงพุง</td>
+        </tr>
+        <tr>
+          <td data-label="ดัชนีชี้วัด"><span class="badge bg-danger fs-5 px-3 py-2">รอบเอว (ชาย)</span></td>
+          <td data-label="ช่วงระดับเกณฑ์" class="fs-4">ตั้งแต่ 91 เซนติเมตร ขึ้นไป (หรือ เกินเกณฑ์ ส่วนสูง ÷ 2)</td>
+          <td data-label="ผลการวิเคราะห์" class="fs-4 text-danger fw-bold">อ้วนลงพุง</td>
+          <td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">มีภาวะอ้วนลงพุง เสี่ยงต่อโรคแทรกซ้อนหลอดเลือดหัวใจ สมอง และเบาหวานรายใหม่</td>
+        </tr>
+        <tr>
+          <td data-label="ดัชนีชี้วัด"><span class="badge fs-5 px-3 py-2 text-white" style="background-color: #db2777;">รอบเอว (หญิง)</span></td>
+          <td data-label="ช่วงระดับเกณฑ์" class="fs-4">ไม่เกิน 80 เซนติเมตร (หรือ ไม่เกิน ส่วนสูง ÷ 2)</td>
+          <td data-label="ผลการวิเคราะห์" class="fs-4 text-success fw-bold">ปกติ</td>
+          <td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">รอบเอวอยู่ในเกณฑ์ปลอดภัย ดัชนีรอบเอวสมส่วน ไม่มีความเสี่ยงภาวะอ้วนลงพุง</td>
+        </tr>
+        <tr>
+          <td data-label="ดัชนีชี้วัด"><span class="badge fs-5 px-3 py-2 text-white" style="background-color: #9d174d;">รอบเอว (หญิง)</span></td>
+          <td data-label="ช่วงระดับเกณฑ์" class="fs-4">ตั้งแต่ 81 เซนติเมตร ขึ้นไป (หรือ เกินเกณฑ์ ส่วนสูง ÷ 2)</td>
+          <td data-label="ผลการวิเคราะห์" class="fs-4 text-danger fw-bold">อ้วนลงพุง</td>
+          <td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">มีภาวะอ้วนลงพุง เสี่ยงต่อโรคแทรกซ้อนหลอดเลือดหัวใจ สมอง และเบาหวานรายใหม่</td>
+        </tr>
+      `;
     }
 
     async function fetchVhvPerformanceReportFromServer() { 
       toggleLoaderDisplay(true); 
       try {
-        const { data: dataRows } = await db.from('data').select('vhv_name, moo, pid'); const { data: screenRows } = await db.from('screening').select('citizen_id');
+        const { data: dataRows } = await db.from('data').select('vhv_name, moo, pid, community'); const { data: screenRows } = await db.from('screening').select('citizen_id');
         let vhvMap = {}; const screenedPids = screenRows ? screenRows.map(s => s.citizen_id.toString()) : [];
-        if (dataRows) {
-          dataRows.forEach(r => {
-            let vhvName = r.vhv_name; if(!vhvName || vhvName.trim() === "") return;
-            if(!vhvMap[vhvName]) { vhvMap[vhvName] = { name: vhvName, moo: r.moo || 3, target: 0, done: 0 }; }
-            vhvMap[vhvName].target++; if (screenedPids.includes(r.pid.toString())) { vhvMap[vhvName].done++; }
-          });
+        
+        // 🔒 ล็อกสิทธิ์ความปลอดภัยรายหมู่/รายชุมชน ในหน้าคำนวณผลงาน อสม.
+        let filteredDataRows = dataRows || [];
+        if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') {
+          filteredDataRows = filteredDataRows.filter(r => r.moo === activeVhvSession.moo && (!activeVhvSession.community || r.community === activeVhvSession.community));
         }
+
+        filteredDataRows.forEach(r => {
+          let vhvName = r.vhv_name; if(!vhvName || vhvName.trim() === "") return;
+          if(!vhvMap[vhvName]) { vhvMap[vhvName] = { name: vhvName, moo: r.moo || 3, target: 0, done: 0 }; }
+          vhvMap[vhvName].target++; if (screenedPids.includes(r.pid.toString())) { vhvMap[vhvName].done++; }
+        });
         masterVhvPerformanceList = Object.values(vhvMap).map(v => { let pending = v.target - v.done; let percentage = ((v.done / v.target) * 100).toFixed(1); return { name: v.name, moo: v.moo, target: v.target, done: v.done, pending: pending, percentage: percentage }; });
         toggleLoaderDisplay(false); const maxPage = Math.ceil(masterVhvPerformanceList.length / rowsPerPageLimit) || 1; perfCurrentPage = Math.max(1, Math.min(perfCurrentPage, maxPage)); renderVhvPerformanceTable(); 
       } catch(err) { toggleLoaderDisplay(false); }
@@ -862,7 +932,18 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
     async function fetchManagementTargetsFromServer() { 
       toggleLoaderDisplay(true); 
       try {
-        const records = await supabaseSelectAll('data', 'pid, full_name, age, house_no, moo, vhv_name, area_status, community'); toggleLoaderDisplay(false); 
+        // 🔒 ล็อกความปลอดภัยรายหมู่/รายชุมชน บนแผงรายชื่อทะเบียนเป้าหมายประชากรหลัก (เมนูที่ 5)
+        const records = await supabaseSelectAll('data', 'pid, full_name, age, house_no, moo, vhv_name, area_status, community', (q) => {
+          if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') {
+            let query = q.eq('moo', activeVhvSession.moo);
+            if (activeVhvSession.community && activeVhvSession.community.trim() !== "") {
+              query = query.eq('community', activeVhvSession.community);
+            }
+            return query;
+          }
+          return q;
+        }); 
+        toggleLoaderDisplay(false); 
         masterTargetMgList = (records || []).map(r => {
           let communityStr = r.community && r.community.trim() !== "" ? ` ชุมชน${r.community}` : "";
           return { pid: r.pid, name: r.full_name, age: r.age, address: `บ้านเลขที่ ${r.house_no || '-'} ม.${r.moo}${communityStr}`, vhv_name: r.vhv_name || '-', status_area: r.area_status || 'อยู่ในพื้นที่' };
@@ -929,7 +1010,6 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
 
     async function executeSaveUserForm(e) {
       e.preventDefault(); const uid = document.getElementById('modal_user_id').value;
-      // 🛠️ แก้ไข: ปลดการเติมฟิกข้ามชุมชน ให้ส่งเป็นค่าว่างเพื่อป้องกันความสับสนใน 16 ชุมชน
       const payload = {
         username: document.getElementById('modal_user').value.trim(), password: document.getElementById('modal_pass').value.trim(),
         full_name: document.getElementById('modal_fullname').value.trim(), role: document.getElementById('modal_type').value,
@@ -958,8 +1038,27 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
     async function fetchScreeningReportDataFromServer() {
       toggleLoaderDisplay(true);
       try {
+        // 🔒 ล็อกสิทธิ์ความปลอดภัยรายหมู่/รายชุมชนสตาฟฟ์และอสม. ในการเข้าถึงคลังรายงานสรุปทั้งหมด (เมนูที่ 7)
+        let allowedPids = [];
+        if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') {
+          const allowedDataRows = await supabaseSelectAll('data', 'pid', (q) => {
+            let query = q.eq('moo', activeVhvSession.moo);
+            if (activeVhvSession.community && activeVhvSession.community.trim() !== "") {
+              query = query.eq('community', activeVhvSession.community);
+            }
+            return query;
+          });
+          allowedPids = allowedDataRows.map(r => r.pid.toString());
+        }
+
         const records = await supabaseSelectAll('screening', '*'); toggleLoaderDisplay(false);
-        masterReportList = (records || []).map(r => ({ pid: r.citizen_id, name: r.name, date: r.date, weight: r.weight, height: r.height, waist: r.waist, sbp: r.bp_sys, dbp: r.bp_dia, bsl: r.fbs, smoking: r.smoking, alcohol: r.alcohol, exercise: r.exercise }));
+        
+        let filteredReports = records || [];
+        if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') {
+          filteredReports = filteredReports.filter(r => allowedPids.includes(r.citizen_id.toString()));
+        }
+
+        masterReportList = filteredReports.map(r => ({ pid: r.citizen_id, name: r.name, date: r.date, weight: r.weight, height: r.height, waist: r.waist, sbp: r.bp_sys, dbp: r.bp_dia, bsl: r.fbs, smoking: r.smoking, alcohol: r.alcohol, exercise: r.exercise }));
         const maxPage = Math.ceil(masterReportList.length / rowsPerPageLimit) || 1; reportCurrentPage = Math.max(1, Math.min(reportCurrentPage, maxPage)); renderReportTable();
       } catch(err) { toggleLoaderDisplay(false); }
     }
@@ -968,7 +1067,7 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
       const tbody = document.getElementById('reportTableBody'); if (!tbody) return; tbody.innerHTML = '';
       if (masterReportList.length === 0) { tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4 fs-4">ยังไม่พบบันทึกประวัติการคัดกรอง NCDs ในระบบ</td></tr>'; return; }
       const st = (reportCurrentPage - 1) * rowsPerPageLimit; const ed = Math.min(st + rowsPerPageLimit, masterReportList.length); const slice = masterReportList.slice(st, ed);
-      rslice = slice.forEach(r => { tbody.innerHTML += `<tr><td data-label="เลขทะเบียน PID">${r.pid}</td><td data-label="ชื่อ - นามสกุล">${r.name}</td><td data-label="วันที่คัดกรอง">${r.date}</td><td data-label="น้ำหนัก (กก.)">${r.weight}</td><td data-label="ส่วนสูง (ซม.)">${r.height}</td><td data-label="รอบเอว (ซม.)">${r.waist}</td><td data-label="SYS (บน)" class="text-danger">${r.sbp}</td><td data-label="DIA (ล่าง)" class="text-danger">${r.dbp}</td><td data-label="BSL (น้ำตาล)" class="text-success">${r.bsl}</td><td data-label="พฤติกรรมสูบบุหรี่">${r.smoking}</td><td data-label="การดื่มสุรา">${r.alcohol}</td><td data-label="การออกกำลังกาย">${r.exercise}</td></tr>`; });
+      slice.forEach(r => { tbody.innerHTML += `<tr><td data-label="เลขทะเบียน PID">${r.pid}</td><td data-label="ชื่อ - นามสกุล">${r.name}</td><td data-label="วันที่คัดกรอง">${r.date}</td><td data-label="น้ำหนัก (กก.)">${r.weight}</td><td data-label="ส่วนสูง (ซม.)">${r.height}</td><td data-label="รอบเอว (ซม.)">${r.waist}</td><td data-label="SYS (บน)" class="text-danger">${r.sbp}</td><td data-label="DIA (ล่าง)" class="text-danger">${r.dbp}</td><td data-label="BSL (น้ำตาล)" class="text-success">${r.bsl}</td><td data-label="พฤติกรรมสูบบุหรี่">${r.smoking}</td><td data-label="การดื่มสุรา">${r.alcohol}</td><td data-label="การออกกำลังกาย">${r.exercise}</td></tr>`; });
       safetySetTextContent('labelReportPaginationInfo', `รายงานแถวที่ ${st+1} ถึง ${ed} จากทั้งหมด ${masterReportList.length} รายการ`); compileSmartPaginationLinks(reportCurrentPage, masterReportList.length, 'paginationReportWrapper', 'shiftReportPage');
     }
 
@@ -1068,7 +1167,6 @@ async function executeProcessingCsvUploadToServer() {
         const typedData = jsonBatchArray
           .map(u => {
             const idVal = parseNumberRobust(getCsvValueRobust(u, ['id', 'ลำดับ']));
-            // 🛠️ แก้ไข: ลบการเติมชุมชนฟิกข้ามออก ปล่อยโล่งหากไม่มีข้อมูลใน CSV เพื่อไม่ให้ทับชุมชนอื่นใน 16 ชุมชน
             return {
               id: idVal, username: getCsvValueRobust(u, ['username', 'ชื่อผู้ใช้', 'เบอร์โทร']), password: getCsvValueRobust(u, ['password', 'รหัสผ่าน']), full_name: getCsvValueRobust(u, ['full_name', 'ชื่อ-นามสกุล', 'ชื่อจริง']), role: getCsvValueRobust(u, ['role', 'สิทธิ์']) || 'user', moo: parseNumberRobust(getCsvValueRobust(u, ['moo', 'หมู่ที่'])) || 0, pid_vhv: getCsvValueRobust(u, ['pid_vhv', 'PID อสม.']) || '', 
               community: getCsvValueRobust(u, ['community', 'ชุมชน']) || ''
@@ -1083,7 +1181,6 @@ async function executeProcessingCsvUploadToServer() {
         const typedData = jsonBatchArray
           .map(p => {
             const pidVal = parseNumberRobust(getCsvValueRobust(p, ['pid', 'เลขทะเบียน'])); const rawScreenDate = getCsvValueRobust(p, ['screening_date', 'วันที่คัดกรอง']); const rawBirthDate = getCsvValueRobust(p, ['birth_date', 'วันเกิด', 'birthdate', 'birth date', 'วัน/เดือน/ปีเกิด', 'วัน เดือน ปีเกิด']);
-            // 🛠️ แก้ไข: ปล่อยชุมชนให้ว่าง (null) ตามจริง หากไม่มีในไฟล์ CSV ป้องกันข้อมูลสับสน
             return {
               pid: pidVal, full_name: getCsvValueRobust(p, ['full_name', 'ชื่อ-นามสกุล']), gender: getCsvValueRobust(p, ['gender', 'เพศ']) || 'ชาย', birth_date: parseDateRobust(rawBirthDate), age: parseNumberRobust(getCsvValueRobust(p, ['age', 'อายุ'])) || 0, house_no: getCsvValueRobust(p, ['house_no', 'บ้านเลขที่']) || '', moo: parseNumberRobust(getCsvValueRobust(p, ['moo', 'หมู่ที่'])) || 0, village_name: getCsvValueRobust(p, ['village_name', 'ชื่อหมู่บ้าน']) || null, 
               community: getCsvValueRobust(p, ['community', 'ชุมชน']) || null,       
@@ -1097,7 +1194,7 @@ async function executeProcessingCsvUploadToServer() {
         Swal.fire({ icon: 'success', title: 'นำเข้าข้อมูลเป้าหมายสำเร็จ!', text: `ระบบอัปเดตข้อมูลรวมถึงวันเกิดสากลและสัญญาณชีพเข้าตาราง data จำนวน ${finalUniqueData.length} รายการเรียบร้อยครับ` });
       }
       fileInput.value = "";
-    } catch (err) { Swal.fire({ icon: 'error', title: 'การนำเข้าล้มเหลว', text: 'ตรวจพบข้อผิดพลาด: ' + err.message }); } finally { toggleLoaderDisplay(false); }
+    } catch (err) { Swal.fire({ icon: 'error', title: 'การนำเข้าล้มเหลว', text: 'ตรวจพบข้อผิดพลาด: ' + err.message }); } military: finally { toggleLoaderDisplay(false); }
   }; fileReader.readAsText(csvFile, "UTF-8");
 }
    
