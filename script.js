@@ -384,7 +384,7 @@ function renderHealthRulesTable() {
     </tr>
     <tr>
       <td data-label="ดัชนีชี้วัด"><span class="badge fs-5 px-3 py-2 text-white" style="background-color: #db2777;">รอบเอว (หญิง)</span></td>
-      <td data-label="ช่วงระดับเกณฑ์" class="fs-4">ไม่เกิน 80 เซนติเมตร (หรือ ไม่เกิน ส่วนสูง ÷ 2)</td>
+      <td data-label="ช่วงระดับเกณฑ์" class="fs-4">ไม่เกิน 80 เซน移เมตร (หรือ ไม่เกิน ส่วนสูง ÷ 2)</td>
       <td data-label="ผลการวิเคราะห์" class="fs-4 text-success fw-bold">ปกติ</td>
       <td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">รอบเอวอยู่ในเกณฑ์ปลอดภัย ดัชนีรอบเอวสมส่วน ไม่มีความเสี่ยงภาวะอ้วนลงพุง</td>
     </tr>
@@ -484,7 +484,10 @@ async function fetchUserAccountsFromServer() {
         let editBtn = `<button class="btn btn-sm btn-warning fw-bold fs-6 rounded-pill px-3 me-2" onclick="openEditUserModal(${JSON.stringify(u).replace(/"/g, '&quot;')})"><i class="fa-solid fa-user-pen"></i> แก้ไข</button>`;
         let deleteBtn = `<button class="btn btn-sm btn-danger fw-bold fs-6 rounded-pill px-3" onclick="executeUserCrudAction('DELETE', ${u.id})"><i class="fa fa-trash"></i> ลบ</button>`;
         if(activeVhvSession.role === 'staff') { deleteBtn = `<span class="badge bg-light text-muted fs-6">ล็อกสิทธิ์การลบ</span>`; if (u.role === 'admin') { editBtn = `<span class="badge bg-light text-muted fs-6 me-2">ล็อกสิทธิ์จัดการ Admin</span>`; } }
-        tbody.innerHTML += `<tr><td data-label="รหัสผู้ใช้">${u.id}</td><td data-label="ชื่อผู้ใช้">${u.username}</td><td data-label="รหัสผ่าน"><code>${u.password}</code></td><td data-label="สิทธิ์ระบบ"><span class="badge bg-secondary">${u.role}</span></td><td data-label="ชื่อ - นามสกุล">${u.full_name}</td><td data-label="หมู่ที่">หมู่ ${u.moo}</td><td data-label="จัดการคำสั่ง" class="text-center w-100">${editBtn} ${deleteBtn}</td></tr>`;
+        
+        let communityLabel = u.community && u.community.trim() !== "" ? `<br><span class="text-muted small"><i class="fa-solid fa-tree-city"></i> ${u.community}</span>` : '';
+        
+        tbody.innerHTML += `<tr><td data-label="รหัสผู้ใช้">${u.id}</td><td data-label="ชื่อผู้ใช้">${u.username}</td><td data-label="รหัสผ่าน"><code>${u.password}</code></td><td data-label="สิทธิ์ระบบ"><span class="badge bg-secondary">${u.role}</span></td><td data-label="ชื่อ - นามสกุล">${u.full_name}</td><td data-label="หมู่ที่ / ชุมชน">หมู่ ${u.moo}${communityLabel}</td><td data-label="จัดการคำสั่ง" class="text-center w-100">${editBtn} ${deleteBtn}</td></tr>`;
       });
     }
   } catch (err) { toggleLoaderDisplay(false); }
@@ -492,12 +495,14 @@ async function fetchUserAccountsFromServer() {
 
 function openAddUserModal() {
   const form = document.getElementById('userActionForm'); if (form) form.reset(); safetySetInputValue('modal_user_id', ""); safetySetTextContent('userModalTitle', "เพิ่มบัญชีรายชื่อ อสม. คณะทำงานใหม่");
+  safetySetInputValue('modal_community', ""); 
   const typeSelect = document.getElementById('modal_type'); if (typeSelect) { if (activeVhvSession.role === 'staff') { typeSelect.value = 'user'; typeSelect.disabled = true; } else { typeSelect.disabled = false; } }
   if (bootstrapUserModalInstance) bootstrapUserModalInstance.show();
 }
 
 function openEditUserModal(uObj) {
   safetySetInputValue('modal_user_id', uObj.id); safetySetInputValue('modal_user', uObj.username); safetySetInputValue('modal_pass', uObj.password); safetySetInputValue('modal_fullname', uObj.full_name); safetySetInputValue('modal_type', uObj.role); safetySetInputValue('modal_moo', uObj.moo); safetySetInputValue('modal_pid_อสม', uObj.pid_vhv);
+  safetySetInputValue('modal_community', uObj.community || ""); 
   safetySetTextContent('userModalTitle', "แก้ไขข้อมูลระเบียบบัญชี อสม.");
   const typeSelect = document.getElementById('modal_type'); if (typeSelect) { typeSelect.disabled = (activeVhvSession.role === 'staff'); }
   if (bootstrapUserModalInstance) bootstrapUserModalInstance.show();
@@ -508,7 +513,8 @@ async function executeSaveUserForm(e) {
   const payload = {
     username: document.getElementById('modal_user').value.trim(), password: document.getElementById('modal_pass').value.trim(),
     full_name: document.getElementById('modal_fullname').value.trim(), role: document.getElementById('modal_type').value,
-    moo: parseInt(document.getElementById('modal_moo').value) || 0, pid_vhv: document.getElementById('modal_pid_อสม').value.trim(), community: ''
+    moo: parseInt(document.getElementById('modal_moo').value) || 0, pid_vhv: document.getElementById('modal_pid_อสม').value.trim(), 
+    community: document.getElementById('modal_community').value
   };
   toggleLoaderDisplay(true);
   try {
@@ -681,7 +687,6 @@ async function executeProcessingCsvUploadToServer() {
         if (typedData.length === 0) throw new Error("ไม่พบข้อมูลประชากรที่ถูกต้องในไฟล์ CSV");
         const uniqueDataMap = new Map(); typedData.forEach(item => uniqueDataMap.set(item.pid, item)); const finalUniqueData = Array.from(uniqueDataMap.values());
         
-        /* 🔥 แก้ไขบั๊ก Destructuring assignment และปิดเครื่องหมายปีกกาสำเร็จตรงนี้ */
         const { error: upsertErr } = await db.from('data').upsert(finalUniqueData); if (upsertErr) throw upsertErr;
         
         Swal.fire({ icon: 'success', title: 'นำเข้าข้อมูลเป้าหมายสำเร็จ!', text: `ระบบอัปเดตข้อมูลรวมถึงวันเกิดสากลและสัญญาณชีพเข้าตาราง data จำนวน ${finalUniqueData.length} รายการเรียบร้อยครับ` });
