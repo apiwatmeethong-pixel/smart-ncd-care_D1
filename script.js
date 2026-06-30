@@ -144,16 +144,19 @@ function shiftPerfPage(num) { const maxPage = Math.ceil(masterVhvPerformanceList
 function shiftTgtMgPage(num) { const maxPage = Math.ceil(filteredTargetMgList.length / rowsPerPageLimit) || 1; tgtMgCurrentPage = Math.max(1, Math.min(num, maxPage)); renderTargetMgTable(); }
 function shiftReportPage(num) { const maxPage = Math.ceil(masterReportList.length / rowsPerPageLimit) || 1; reportCurrentPage = Math.max(1, Math.min(num, maxPage)); renderReportTable(); }
 
+/* 🌟 ปรับปรุงการสโคปข้อมูลเมนู 1 ตามเงื่อนไขสิทธิ์ระดับเขตพื้นที่ */
 async function fetchDashboardCountsFromServer() {
   try {
     const dataRows = await supabaseSelectAll('data', 'pid, vhv_pid, moo, community', (q) => { 
-      if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') { 
+      if (activeVhvSession.role === 'user') { 
+        return q.eq('vhv_pid', activeVhvSession.vhvId);
+      } else if (activeVhvSession.role === 'staff') {
         let query = q.eq('moo', activeVhvSession.moo);
         if (activeVhvSession.community && activeVhvSession.community.trim() !== "") {
           query = query.eq('community', activeVhvSession.community);
         }
         return query;
-      } 
+      }
       return q; 
     });
     const assignedCount = dataRows ? dataRows.length : 0; const assignedPids = dataRows ? dataRows.map(r => r.pid.toString()) : [];
@@ -183,11 +186,14 @@ async function fetchDashboardCountsFromServer() {
   } catch (err) { console.error(err); }
 }
 
+/* 🌟 ปรับปรุงการล็อกรายชื่อคัดกรอง เมนู 2 ตามสิทธิ์สากล */
 async function fetchPopulationListFromServer() {
   toggleLoaderDisplay(true);
   try {
     const dataRows = await supabaseSelectAll('data', '*', (q) => { 
-      if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') { 
+      if (activeVhvSession.role === 'user') { 
+        return q.eq('vhv_pid', activeVhvSession.vhvId);
+      } else if (activeVhvSession.role === 'staff') {
         let query = q.eq('moo', activeVhvSession.moo);
         if (activeVhvSession.community && activeVhvSession.community.trim() !== "") {
           query = query.eq('community', activeVhvSession.community);
@@ -384,7 +390,7 @@ function renderHealthRulesTable() {
     </tr>
     <tr>
       <td data-label="ดัชนีชี้วัด"><span class="badge fs-5 px-3 py-2 text-white" style="background-color: #db2777;">รอบเอว (หญิง)</span></td>
-      <td data-label="ช่วงระดับเกณฑ์" class="fs-4">ไม่เกิน 80 เซน移เมตร (หรือ ไม่เกิน ส่วนสูง ÷ 2)</td>
+      <td data-label="ช่วงระดับเกณฑ์" class="fs-4">ไม่เกิน 80 เซนติเมตร (หรือ ไม่เกิน ส่วนสูง ÷ 2)</td>
       <td data-label="ผลการวิเคราะห์" class="fs-4 text-success fw-bold">ปกติ</td>
       <td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">รอบเอวอยู่ในเกณฑ์ปลอดภัย ดัชนีรอบเอวสมส่วน ไม่มีความเสี่ยงภาวะอ้วนลงพุง</td>
     </tr>
@@ -397,39 +403,90 @@ function renderHealthRulesTable() {
   `;
 }
 
+/* 🌟 [แก้ไขสำเร็จ] ปรับปรุงตรรกะการเชื่อมโยงข้อมูลและการแบ่งสิทธิ์ดูผลงาน เมนู 4 ผ่าน pid_vhv */
 async function fetchVhvPerformanceReportFromServer() { 
   toggleLoaderDisplay(true); 
   try {
-    const { data: dataRows } = await db.from('data').select('vhv_name, moo, pid, community'); const { data: screenRows } = await db.from('screening').select('citizen_id');
-    let vhvMap = {}; const screenedPids = screenRows ? screenRows.map(s => s.citizen_id.toString()) : [];
+    // 1. ดึงบัญชีผู้ใช้งานระบบทั้งหมดที่เป็นสิทธิ์ อสม. (role = 'user')
+    const { data: allVhvs, error: userErr } = await db.from('users').select('*').eq('role', 'user');
+    if (userErr) throw userErr;
     
-    let filteredDataRows = dataRows || [];
-    if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') {
-      filteredDataRows = filteredDataRows.filter(r => r.moo === activeVhvSession.moo && (!activeVhvSession.community || r.community === activeVhvSession.community));
+    // 2. ดึงข้อมูลทะเบียนประชากรและตารางคัดกรองทั้งหมดมาประมวลผลแมตช์ในหน่วยความจำ
+    const dataRows = await supabaseSelectAll('data', 'pid, vhv_pid, vhv_name, moo, community');
+    const screenRows = await supabaseSelectAll('screening', 'citizen_id');
+    const screenedPids = screenRows ? screenRows.map(s => s.citizen_id.toString()) : [];
+
+    // 3. กรองสิทธิ์การเข้าถึง อสม. ตาม Level บทบาทหน้าที่ของผู้ใช้งานปัจจุบัน
+    let filteredVhvs = allVhvs || [];
+    if (activeVhvSession.role === 'user') {
+      filteredVhvs = filteredVhvs.filter(u => u.pid_vhv === activeVhvSession.vhvId);
+    } else if (activeVhvSession.role === 'staff') {
+      filteredVhvs = filteredVhvs.filter(u => u.moo === activeVhvSession.moo && 
+        (!activeVhvSession.community || u.community === activeVhvSession.community));
     }
 
-    filteredDataRows.forEach(r => {
-      let vhvName = r.vhv_name; if(!vhvName || vhvName.trim() === "") return;
-      if(!vhvMap[vhvName]) { vhvMap[vhvName] = { name: vhvName, moo: r.moo || 3, target: 0, done: 0 }; }
-      vhvMap[vhvName].target++; if (screenedPids.includes(r.pid.toString())) { vhvMap[vhvName].done++; }
+    // 4. เชื่อมโยงเพื่อนับยอดเป้าหมายและผลงานจริงรายคน
+    masterVhvPerformanceList = filteredVhvs.map(u => {
+      const myCitizens = dataRows.filter(r => 
+        (r.vhv_pid && r.vhv_pid.toString() === u.pid_vhv.toString()) || 
+        (r.vhv_name && r.vhv_name.trim() === u.full_name.trim())
+      );
+      
+      const target = myCitizens.length;
+      const done = myCitizens.filter(r => screenedPids.includes(r.pid.toString())).length;
+      const pending = target - done;
+      const percentage = target > 0 ? ((done / target) * 100).toFixed(1) : "0.0";
+      
+      return {
+        name: u.full_name,
+        moo: u.moo,
+        community: u.community || '',
+        target: target,
+        done: done,
+        pending: pending,
+        percentage: percentage
+      };
     });
-    masterVhvPerformanceList = Object.values(vhvMap).map(v => { let pending = v.target - v.done; let percentage = ((v.done / v.target) * 100).toFixed(1); return { name: v.name, moo: v.moo, target: v.target, done: v.done, pending: pending, percentage: percentage }; });
-    toggleLoaderDisplay(false); const maxPage = Math.ceil(masterVhvPerformanceList.length / rowsPerPageLimit) || 1; perfCurrentPage = Math.max(1, Math.min(perfCurrentPage, maxPage)); renderVhvPerformanceTable(); 
-  } catch(err) { toggleLoaderDisplay(false); }
+
+    toggleLoaderDisplay(false); 
+    const maxPage = Math.ceil(masterVhvPerformanceList.length / rowsPerPageLimit) || 1; 
+    perfCurrentPage = Math.max(1, Math.min(perfCurrentPage, maxPage)); 
+    renderVhvPerformanceTable(); 
+  } catch(err) { 
+    toggleLoaderDisplay(false); 
+    Swal.fire({ icon: 'error', title: 'โหลดรายงานล้มเหลว', text: err.message });
+  }
 }
 
 function renderVhvPerformanceTable() {
-  const tbody = document.getElementById('vhvPerformanceTableBody'); if (!tbody) return; tbody.innerHTML = ''; if(masterVhvPerformanceList.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="text-center">ไม่พบรายงาน</td></tr>'; return; }
-  const st = (perfCurrentPage - 1) * rowsPerPageLimit; const ed = Math.min(st + rowsPerPageLimit, masterVhvPerformanceList.length); const slice = masterVhvPerformanceList.slice(st, ed);
-  slice.forEach(item => { tbody.innerHTML += `<tr><td data-label="ชื่อ อสม.">${item.name}</td><td data-label="หมู่ที่">หมู่ที่ ${item.moo}</td><td data-label="เป้าหมายทั้งหมด">${item.target} คน</td><td data-label="คัดกรองแล้ว" class="text-success">${item.done} คน</td><td data-label="คงเหลือ" class="text-danger">${item.pending} คน</td><td data-label="ร้อยละผลงาน"><div class="d-flex align-items-center gap-2 w-100 justify-content-end justify-content-md-start"><div class="progress flex-grow-1 d-none d-md-flex" style="height:12px; min-width:100px;"><div class="progress-bar bg-success" style="width:${item.percentage}%"></div></div><span>${item.percentage}%</span></div></td></tr>`; });
-  safetySetTextContent('labelPerfPaginationInfo', `รายงานแถวที่ ${st+1} ถึง ${ed} จากทั้งหมด ${masterVhvPerformanceList.length} อสม.`); compileSmartPaginationLinks(perfCurrentPage, masterVhvPerformanceList.length, 'paginationPerfWrapper', 'shiftPerfPage');
+  const tbody = document.getElementById('vhvPerformanceTableBody'); if (!tbody) return; tbody.innerHTML = ''; 
+  if(masterVhvPerformanceList.length === 0) { 
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">ไม่พบรายงานข้อมูลสถิติผลงาน อสม. ในเขตรับผิดชอบนี้</td></tr>'; 
+    return; 
+  }
+  const start = (perfCurrentPage - 1) * rowsPerPageLimit; const end = Math.min(start + rowsPerPageLimit, masterVhvPerformanceList.length); const slice = masterVhvPerformanceList.slice(start, end);
+  slice.forEach(item => { 
+    let communityText = item.community ? ` (${item.community})` : '';
+    tbody.innerHTML += `<tr>
+      <td data-label="ชื่อ อสม.">${item.name}</td>
+      <td data-label="หมู่ที่ / ชุมชน">หมู่ ${item.moo}${communityText}</td>
+      <td data-label="เป้าหมายทั้งหมด">${item.target} คน</td>
+      <td data-label="คัดกรองแล้ว" class="text-success">${item.done} คน</td>
+      <td data-label="คงเหลือ" class="text-danger">${item.pending} คน</td>
+      <td data-label="ร้อยละผลงาน"><div class="d-flex align-items-center gap-2 w-100 justify-content-end justify-content-md-start"><div class="progress flex-grow-1 d-none d-md-flex" style="height:12px; min-width:100px;"><div class="progress-bar bg-success" style="width:${item.percentage}%"></div></div><span>${item.percentage}%</span></div></td>
+    </tr>`; 
+  });
+  safetySetTextContent('labelPerfPaginationInfo', `รายงานแถวที่ ${start+1} ถึง ${end} จากทั้งหมด ${masterVhvPerformanceList.length} อสม.`); compileSmartPaginationLinks(perfCurrentPage, masterVhvPerformanceList.length, 'paginationPerfWrapper', 'shiftPerfPage');
 }
 
+/* 🌟 ปรับปรุงการสโคปข้อมูลการบริหารประชากรประจำเขต เมนู 5 */
 async function fetchManagementTargetsFromServer() { 
   toggleLoaderDisplay(true); 
   try {
     const records = await supabaseSelectAll('data', 'pid, full_name, age, house_no, moo, vhv_name, area_status, community', (q) => {
-      if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') {
+      if (activeVhvSession.role === 'user') {
+        return q.eq('vhv_pid', activeVhvSession.vhvId);
+      } else if (activeVhvSession.role === 'staff') {
         let query = q.eq('moo', activeVhvSession.moo);
         if (activeVhvSession.community && activeVhvSession.community.trim() !== "") {
           query = query.eq('community', activeVhvSession.community);
@@ -536,11 +593,15 @@ async function executeUserCrudAction(action, userId) {
   }
 }
 
+/* 🌟 ปรับปรุงการสโคปหน้าคลังรายงาน เมนู 7 ตามสิทธิ์สากล */
 async function fetchScreeningReportDataFromServer() {
   toggleLoaderDisplay(true);
   try {
     let allowedPids = [];
-    if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') {
+    if (activeVhvSession.role === 'user') {
+      const allowedDataRows = await supabaseSelectAll('data', 'pid', (q) => q.eq('vhv_pid', activeVhvSession.vhvId));
+      allowedPids = allowedDataRows.map(r => r.pid.toString());
+    } else if (activeVhvSession.role === 'staff') {
       const allowedDataRows = await supabaseSelectAll('data', 'pid', (q) => {
         let query = q.eq('moo', activeVhvSession.moo);
         if (activeVhvSession.community && activeVhvSession.community.trim() !== "") {
