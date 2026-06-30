@@ -488,7 +488,7 @@
                       * หมายเหตุ: การนำเข้าไฟล์ CSV จะทำการเขียนทับ/แทรกข้อมูลลงตาราง Supabase ของท่านทันที โปรดตรวจสอบชื่อหัวคอลัมน์แถวแรกสุดในไฟล์ CSV ให้ตรงตามชื่อคอลัมน์ของตารางเป้าหมายก่อนกดยืนยันคำสั่ง
                     </p>
                     
-                    <button class="btn btn-primary btn-lg w-100 py-3 fs-3 fw-bold rounded-pill shadow" onclick="executeProcessingCsvUploadToServer()">
+                    <button class="btn btn-primary btn-lg w-100 py-3 fs-3 fw-bold rounded-pill shadow" onclick="">
                       <i class="fa-solid fa-cloud-arrow-up me-2"></i> เริ่มกระบวนการนำเข้าไฟล์ข้อมูล
                     </button>
                   </div>
@@ -1479,7 +1479,7 @@ async function executeProcessingCsvUploadToServer() {
               username: getCsvValueRobust(u, ['username', 'ชื่อผู้ใช้', 'เบอร์โทร']), 
               password: getCsvValueRobust(u, ['password', 'รหัสผ่าน']), 
               full_name: getCsvValueRobust(u, ['full_name', 'ชื่อ-นามสกุล', 'ชื่อจริง']),
-              role: getCsvValueRobust(u, ['role', 'sสิทธิ์']) || 'user', 
+              role: getCsvValueRobust(u, ['role', 'สิทธิ์']) || 'user', 
               moo: parseNumberRobust(getCsvValueRobust(u, ['moo', 'หมู่ที่'])) || 0, 
               pid_vhv: getCsvValueRobust(u, ['pid_vhv', 'PID อสม.']) || '', 
               community: getCsvValueRobust(u, ['community', 'ชุมชน']) || 'ชุมชนโทกหัวช้าง'
@@ -1498,7 +1498,6 @@ async function executeProcessingCsvUploadToServer() {
         
         Swal.fire({ icon: 'success', title: 'นำเข้าบัญชี อสม. สำเร็จ!', text: `อัปเดต/เพิ่มรายชื่อผู้ใช้งานตาราง users จำนวน ${finalUniqueUsers.length} รายการเรียบร้อย` });
       } else {
-        // 🌟 โหมดดึงข้อมูลประชากรเป้าหมายแบบยืดหยุ่นสูงพิเศษ รองรับทุกชื่อคอลัมน์และทุกฟอร์แมตวันที่
         const typedData = jsonBatchArray
           .map(p => {
             const pidVal = parseNumberRobust(getCsvValueRobust(p, ['pid', 'เลขทะเบียน']));
@@ -1507,8 +1506,9 @@ async function executeProcessingCsvUploadToServer() {
             return {
               pid: pidVal, 
               full_name: getCsvValueRobust(p, ['full_name', 'ชื่อ-นามสกุล']), 
-              age: parseNumberRobust(getCsvValueRobust(p, ['age', 'อายุ'])) || 0, 
               gender: getCsvValueRobust(p, ['gender', 'เพศ']) || 'ชาย',
+              birth_date: getCsvValueRobust(p, ['birth_date', 'วันเกิด']) || null, // 🔥 แก้ไขจุดนี้: ข้อมูลวันเกิดเข้าแล้วครับ!
+              age: parseNumberRobust(getCsvValueRobust(p, ['age', 'อายุ'])) || 0, 
               house_no: getCsvValueRobust(p, ['house_no', 'บ้านเลขที่']) || '', 
               moo: parseNumberRobust(getCsvValueRobust(p, ['moo', 'หมู่ที่'])) || 0, 
               village_name: getCsvValueRobust(p, ['village_name', 'ชื่อหมู่บ้าน']) || null, 
@@ -1540,7 +1540,7 @@ async function executeProcessingCsvUploadToServer() {
         const { error: upsertErr } = await db.from('data').upsert(finalUniqueData);
         if (upsertErr) throw upsertErr;
 
-        Swal.fire({ icon: 'success', title: 'นำเข้าข้อมูลเป้าหมายสำเร็จ!', text: `ระบบตรวจจับและอัปเดตข้อมูลรวมถึงสัญญาณชีพเข้าตาราง data จำนวน ${finalUniqueData.length} รายการเสร็จสมบูรณ์แล้วครับ` });
+        Swal.fire({ icon: 'success', title: 'นำเข้าข้อมูลเป้าหมายสำเร็จ!', text: `ระบบอัปเดตข้อมูลรวมถึงวันเกิดและสัญญาณชีพเข้าตาราง data จำนวน ${finalUniqueData.length} รายการเสร็จสมบูรณ์เรียบร้อย!` });
       }
       fileInput.value = "";
     } catch (err) {
@@ -1549,7 +1549,6 @@ async function executeProcessingCsvUploadToServer() {
   };
   fileReader.readAsText(csvFile, "UTF-8");
 }
-
     // 🗑️ 3. ⚡ คำสั่งล้างระบบประวัติผลคัดกรองทั้งหมด (`screening`) เพื่อเคลียร์รอบปีงบประมาณใหม่
     async function executeClearScreeningDatabaseAction() {
       Swal.fire({
