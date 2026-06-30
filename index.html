@@ -1501,13 +1501,16 @@ async function executeProcessingCsvUploadToServer() {
         const typedData = jsonBatchArray
           .map(p => {
             const pidVal = parseNumberRobust(getCsvValueRobust(p, ['pid', 'เลขทะเบียน']));
-            const rawDate = getCsvValueRobust(p, ['screening_date', 'วันที่คัดกรอง']);
+            const rawScreenDate = getCsvValueRobust(p, ['screening_date', 'วันที่คัดกรอง']);
+            
+            // 🌟 ซูเปอร์แมปปิ้ง: ดักจับหัวตารางวันเกิดทุกรูปแบบที่เป็นไปได้ (ไม่ว่าจะตั้งชื่อว่าอะไรมาก็ตาม)
+            const rawBirthDate = getCsvValueRobust(p, ['birth_date', 'วันเกิด', 'birthdate', 'birth date', 'วัน/เดือน/ปีเกิด', 'วัน เดือน ปีเกิด']);
             
             return {
               pid: pidVal, 
               full_name: getCsvValueRobust(p, ['full_name', 'ชื่อ-นามสกุล']), 
               gender: getCsvValueRobust(p, ['gender', 'เพศ']) || 'ชาย',
-              birth_date: getCsvValueRobust(p, ['birth_date', 'วันเกิด']) || null, // 🔥 แก้ไขจุดนี้: ข้อมูลวันเกิดเข้าแล้วครับ!
+              birth_date: parseDateRobust(rawBirthDate), // 🔥 ผ่านตัวแปลงฟอร์แมตวันที่นิรภัยให้อัตโนมัติ ป้องกันค่า NULL
               age: parseNumberRobust(getCsvValueRobust(p, ['age', 'อายุ'])) || 0, 
               house_no: getCsvValueRobust(p, ['house_no', 'บ้านเลขที่']) || '', 
               moo: parseNumberRobust(getCsvValueRobust(p, ['moo', 'หมู่ที่'])) || 0, 
@@ -1517,7 +1520,7 @@ async function executeProcessingCsvUploadToServer() {
               vhv_pid: getCsvValueRobust(p, ['vhv_pid', 'PID อสม.']) || '',
               history_ht: getCsvValueRobust(p, ['history_ht', 'ประวัติ HT']) || null, 
               history_dm: getCsvValueRobust(p, ['history_dm', 'ประวัติ DM']) || null, 
-              screening_date: parseDateRobust(rawDate),                        
+              screening_date: parseDateRobust(rawScreenDate),                        
               weight: parseNumberRobust(getCsvValueRobust(p, ['weight', 'น้ำหนัก']), true),   
               height: parseNumberRobust(getCsvValueRobust(p, ['height', 'ส่วนสูง']), true),   
               waist: parseNumberRobust(getCsvValueRobust(p, ['waist', 'รอบเอว']), true),    
@@ -1540,7 +1543,7 @@ async function executeProcessingCsvUploadToServer() {
         const { error: upsertErr } = await db.from('data').upsert(finalUniqueData);
         if (upsertErr) throw upsertErr;
 
-        Swal.fire({ icon: 'success', title: 'นำเข้าข้อมูลเป้าหมายสำเร็จ!', text: `ระบบอัปเดตข้อมูลรวมถึงวันเกิดและสัญญาณชีพเข้าตาราง data จำนวน ${finalUniqueData.length} รายการเสร็จสมบูรณ์เรียบร้อย!` });
+        Swal.fire({ icon: 'success', title: 'นำเข้าข้อมูลเป้าหมายสำเร็จ!', text: `ระบบอัปเดตข้อมูลรวมถึงวันเกิดมาตรฐานและสัญญาณชีพเข้าตาราง data จำนวน ${finalUniqueData.length} รายการเสร็จสมบูรณ์แล้วครับ` });
       }
       fileInput.value = "";
     } catch (err) {
