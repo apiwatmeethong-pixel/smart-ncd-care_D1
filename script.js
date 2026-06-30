@@ -1,0 +1,721 @@
+const SUPABASE_URL = 'https://ddjcwswzodkdzjfksmqm.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRkamN3c3d6b2RrZHpqZmtzbXFtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NzM0OTAsImV4cCI6MjA5ODA0OTQ5MH0.lLgqwVakZMJqrj-YuR7sCAlqrMp5pSA-ayUMXuvF3ro'; 
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let activeVhvSession = { name: '', role: '', vhvId: '', logo: '', moo: 0, community: '' };
+let masterHealthRules = []; 
+let populationDataset = [];
+let displayFilteredDataset = [];
+let masterVhvPerformanceList = [];
+let masterTargetMgList = [];
+let filteredTargetMgList = [];
+let masterReportList = [];
+
+let tableCurrentPage = 1;
+let perfCurrentPage = 1;
+let tgtMgCurrentPage = 1;
+let reportCurrentPage = 1;
+
+const rowsPerPageLimit = 10;
+let failedLoginAttemptsCount = 0;
+let bootstrapUserModalInstance;
+
+let tableSearchDebounceTimeout;
+let targetMgSearchDebounceTimeout;
+
+async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null) {
+  let allRecords = []; let startRange = 0; const batchSize = 1000; let keepGoing = true;
+  while (keepGoing) {
+    let query = db.from(tableName).select(columns).range(startRange, startRange + batchSize - 1);
+    if (applyFiltersFn) { query = applyFiltersFn(query); }
+    const { data, error } = await query;
+    if (error) throw error;
+    if (!data || data.length === 0) { keepGoing = false; } 
+    else {
+      allRecords = allRecords.concat(data);
+      if (data.length < batchSize) { keepGoing = false; } 
+      else { startRange += batchSize; }
+    }
+  }
+  return allRecords;
+}
+
+function toggleSidebarMenuForPcDevice() {
+  const menu = document.getElementById('sidebarMenu');
+  const frame = document.getElementById('mainContentArea');
+  if (menu && frame) { menu.classList.toggle('collapsed-pc'); frame.classList.toggle('expanded-pc'); }
+}
+
+function toggleLoaderDisplay(isShowing) {
+  const loader = document.getElementById('globalLoader'); if (!loader) return;
+  if (isShowing) { loader.classList.remove('d-none'); } else { loader.classList.add('d-none'); }
+}
+
+function safetySetInputValue(id, val) { const el = document.getElementById(id); if (el) { el.value = val; } }
+function safetySetTextContent(id, txt) { const el = document.getElementById(id); if (el) { el.innerText = txt; } }
+
+window.addEventListener('load', function() {
+  const modalEl = document.getElementById('userManagementModal');
+  if (modalEl) bootstrapUserModalInstance = new bootstrap.Modal(modalEl);
+  const savedLogo = localStorage.getItem('agencyLogoUrl') || 'https://cdn-icons-png.flaticon.com/512/822/822118.png';
+  const img = document.getElementById('loginDisplayLogo'); if (img) img.src = savedLogo;
+});
+
+const btnToggle = document.getElementById('btnTogglePassword');
+if (btnToggle) {
+  btnToggle.addEventListener('click', function() {
+    const pwd = document.getElementById('password'); const eye = document.getElementById('eyeIcon'); if (!pwd || !eye) return;
+    if (pwd.type === 'password') { pwd.type = 'text'; eye.className = 'fa-solid fa-eye-slash fs-4'; }
+    else { pwd.type = 'password'; eye.className = 'fa-solid fa-eye fs-4'; }
+  });
+}
+
+function changeViewWindow(targetView) {
+  document.querySelectorAll('.sub-view-panel').forEach(view => view.classList.add('d-none'));
+  document.querySelectorAll('#sidebarMenu .nav-link').forEach(link => link.classList.remove('active'));
+  const targetEl = document.getElementById(`view-window-${targetView}`); if (targetEl) targetEl.classList.remove('d-none');
+  const menuBtn = document.getElementById(`btn-view-${targetView}`); if (menuBtn) menuBtn.classList.add('active');
+  const sidebar = document.getElementById('sidebarMenu'); if (sidebar && sidebar.classList.contains('show')) { sidebar.classList.remove('show'); }
+  window.scrollTo(0, 0);
+  if (targetView === 'dash') { fetchDashboardCountsFromServer(); }
+  else if (targetView === 'list') { fetchPopulationListFromServer(); }
+  else if (targetView === 'rules') { renderHealthRulesTable(); }
+  else if (targetView === 'perf') { fetchVhvPerformanceReportFromServer(); }
+  else if (targetView === 'mgtgt') { fetchManagementTargetsFromServer(); }
+  else if (targetView === 'mgusr') { fetchUserAccountsFromServer(); }
+  else if (targetView === 'report') { fetchScreeningReportDataFromServer(); }
+}
+
+async function executeLogin(e) {
+  e.preventDefault();
+  if (failedLoginAttemptsCount >= 5) { Swal.fire({ icon: 'error', title: 'ระบบระงับชั่วคราว', text: 'กรอกรหัสผ่านผิดเกิน 5 ครั้ง บัญชีโดนระงับความปลอดภัยอัตโนมัติ' }); return; }
+  toggleLoaderDisplay(true); const u = document.getElementById('username').value.trim(); const p = document.getElementById('password').value.trim();
+  try {
+    const { data: users, error } = await db.from('users').select('*').eq('username', u).eq('password', p);
+    if (error || !users || users.length === 0) {
+      toggleLoaderDisplay(false); failedLoginAttemptsCount++;
+      if (failedLoginAttemptsCount >= 5) {
+        document.getElementById('username').disabled = true; document.getElementById('password').disabled = true;
+        document.querySelector('#loginForm button[type="submit"]').disabled = true;
+        Swal.fire({ icon: 'error', title: 'บัญชีระบบโดนล็อก', text: 'กรอกรหัสผ่านผิดกำหนด 5 ครั้ง บัญชีถูกล็อกถาวรแล้วครับ' });
+      } else { Swal.fire({ icon: 'error', title: 'รหัสผ่านไม่ถูกต้อง', text: `กรุณาเช็กชื่อผู้ใช้หรือรหัสผ่านอีกครั้ง (เหลือสิทธิ์พยายามอีก ${5 - failedLoginAttemptsCount} ครั้ง)` }); }
+      return;
+    }
+    const user = users[0]; const { data: rules } = await db.from('rules').select('*'); masterHealthRules = rules || [];
+    failedLoginAttemptsCount = 0; const currentLogo = localStorage.getItem('agencyLogoUrl') || 'https://cdn-icons-png.flaticon.com/512/822/822118.png';
+    
+    activeVhvSession = { 
+      name: user.full_name, 
+      role: user.role, 
+      vhvId: user.pid_vhv, 
+      logo: currentLogo,
+      moo: parseInt(user.moo) || 0,
+      community: user.community || ''
+    };
+    
+    safetySetTextContent('sessionUserName', `คุณ ${user.full_name}`); safetySetTextContent('sessionUserRole', `สิทธิ์บัญชี: ${user.role} (รหัส อสม: ${user.pid_vhv || '-'})`);
+    const headerLogo = document.getElementById('menuHeaderLogo'); if (headerLogo) headerLogo.src = currentLogo; safetySetInputValue('inputAgencyLogoUrl', currentLogo);
+    if (user.role === 'admin') { document.querySelectorAll('.admin-staff-only').forEach(el => el.classList.remove('d-none')); document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('d-none')); } 
+    else if (user.role === 'staff') { document.querySelectorAll('.admin-staff-only').forEach(el => el.classList.remove('d-none')); document.querySelectorAll('.admin-only').forEach(el => el.classList.add('d-none')); } 
+    else { document.querySelectorAll('.admin-staff-only').forEach(el => el.classList.add('d-none')); document.querySelectorAll('.admin-only').forEach(el => el.classList.add('d-none')); }
+    toggleLoaderDisplay(false); document.getElementById('loginSection').classList.add('d-none'); document.getElementById('mainInterface').classList.remove('d-none');
+    Swal.fire({ icon: 'success', title: 'ยินดีต้อนรับเข้าใช้งาน', text: `เจ้าหน้าที่ระบบ: ${user.full_name}`, timer: 1500, showConfirmButton: false });
+    changeViewWindow('dash');
+  } catch (err) { toggleLoaderDisplay(false); Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message }); }
+}
+
+function executeLogout() { activeVhvSession = { name: '', role: '', vhvId: '', logo: '', moo: 0, community: '' }; document.getElementById('loginForm').reset(); document.getElementById('mainInterface').classList.add('d-none'); document.getElementById('loginSection').classList.remove('d-none'); }
+
+function compileSmartPaginationLinks(currentPage, totalItems, elementWrapperId, clickFunctionName) {
+  const totalPages = Math.ceil(totalItems / rowsPerPageLimit) || 1; const wrapper = document.getElementById(elementWrapperId); if (!wrapper) return; wrapper.innerHTML = ''; if (totalPages <= 1) return;
+  const prevLi = document.createElement('li'); prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+  prevLi.innerHTML = `<a class="page-link" href="javascript:void(0)" onclick="${currentPage === 1 ? 'return false;' : clickFunctionName + '(' + (currentPage - 1) + ')'}">ก่อนหน้า</a>`; wrapper.appendChild(prevLi);
+  let startPage = Math.max(1, currentPage - 2); let endPage = Math.min(totalPages, startPage + 4); if (endPage - startPage < 4) { startPage = Math.max(1, endPage - 4); }
+  for (let i = startPage; i <= endPage; i++) {
+    const li = document.createElement('li'); li.className = `page-item ${currentPage === i ? 'active' : ''}`;
+    li.innerHTML = `<a class="page-link" href="javascript:void(0)" onclick="${clickFunctionName}(${i})">${i}</a>`; wrapper.appendChild(li);
+  }
+  const nextLi = document.createElement('li'); nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+  nextLi.innerHTML = `<a class="page-link" href="javascript:void(0)" onclick="${currentPage === totalPages ? 'return false;' : clickFunctionName + '(' + (currentPage + 1) + ')'}">ถัดไป</a>`; wrapper.appendChild(nextLi);
+}
+
+function shiftTablePage(num) { const maxPage = Math.ceil(displayFilteredDataset.length / rowsPerPageLimit) || 1; tableCurrentPage = Math.max(1, Math.min(num, maxPage)); renderPopulationTableElements(); }
+function shiftPerfPage(num) { const maxPage = Math.ceil(masterVhvPerformanceList.length / rowsPerPageLimit) || 1; perfCurrentPage = Math.max(1, Math.min(num, maxPage)); renderVhvPerformanceTable(); }
+function shiftTgtMgPage(num) { const maxPage = Math.ceil(filteredTargetMgList.length / rowsPerPageLimit) || 1; tgtMgCurrentPage = Math.max(1, Math.min(num, maxPage)); renderTargetMgTable(); }
+function shiftReportPage(num) { const maxPage = Math.ceil(masterReportList.length / rowsPerPageLimit) || 1; reportCurrentPage = Math.max(1, Math.min(num, maxPage)); renderReportTable(); }
+
+async function fetchDashboardCountsFromServer() {
+  try {
+    const dataRows = await supabaseSelectAll('data', 'pid, vhv_pid, moo, community', (q) => { 
+      if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') { 
+        let query = q.eq('moo', activeVhvSession.moo);
+        if (activeVhvSession.community && activeVhvSession.community.trim() !== "") {
+          query = query.eq('community', activeVhvSession.community);
+        }
+        return query;
+      } 
+      return q; 
+    });
+    const assignedCount = dataRows ? dataRows.length : 0; const assignedPids = dataRows ? dataRows.map(r => r.pid.toString()) : [];
+    const screenRows = await supabaseSelectAll('screening', '*');
+    
+    let filteredScreenings = screenRows || []; 
+    if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') { 
+      filteredScreenings = filteredScreenings.filter(s => assignedPids.includes(s.citizen_id.toString())); 
+    }
+    let normalCount = 0; let riskCount = 0; let alertCount = 0; let totalSmokerCount = 0; let totalDrinkerCount = 0;
+    const tbody = document.getElementById('dashboardSummaryTableBody'); if (tbody) tbody.innerHTML = '';
+    filteredScreenings.forEach(item => {
+      if (item.smoking && item.smoking.includes('สูบ') && !item.smoking.includes('ไม่สูบ')) totalSmokerCount++;
+      if (item.alcohol && item.alcohol.includes('ดื่ม') && !item.alcohol.includes('ไม่ดื่ม')) totalDrinkerCount++;
+      if (item.ncd_status.includes('แดง') || item.ncd_status.includes('สงสัย')) alertCount++;
+      else if (item.ncd_status.includes('เหลือง') || item.ncd_status.includes('เสี่ยง')) riskCount++;
+      else if (item.ncd_status.includes('เขียว') || item.ncd_status.includes('ปกติ')) normalCount++;
+      if (tbody) {
+        let bClass = "bg-secondary"; if (item.ncd_status.includes('เขียว') || item.ncd_status.includes('ปกติ')) bClass = "bg-success"; else if (item.ncd_status.includes('เหลือง') || item.ncd_status.includes('เสี่ยง')) bClass = "bg-warning text-dark"; else if (item.ncd_status.includes('แดง') || item.ncd_status.includes('สงสัย')) bClass = "bg-danger";
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td data-label="ชื่อ - นามสกุล">${item.name}</td><td data-label="สรุปสถานะกลุ่ม"><span class="badge ${bClass} fs-6">${item.ncd_status}</span></td><td data-label="แปลดัชนีมวลกาย" class="text-primary">${item.bmi || '-'}</td><td data-label="แปลความดัน (HT)">${item.bp_status}</td><td data-label="แปลน้ำตาล (DM)">${item.fbs_status}</td><td data-label="ประเมินหัวใจ (CVD)">${item.cvd_risk}</td>`; tbody.appendChild(tr);
+      }
+    });
+    if (tbody && filteredScreenings.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">ยังไม่มีข้อมูลผลการคัดกรองเสร็จสิ้น</td></tr>'; }
+    safetySetTextContent('stat-total-count', assignedCount); safetySetTextContent('stat-normal-count', normalCount); safetySetTextContent('stat-risk-count', riskCount); safetySetTextContent('stat-alert-count', alertCount); safetySetTextContent('stat-screened-count', filteredScreenings.length); safetySetTextContent('stat-smoker-count', totalSmokerCount); safetySetTextContent('stat-drinker-count', totalDrinkerCount);
+    let calculatedProgressPercent = ((filteredScreenings.length / (assignedCount || 1)) * 100).toFixed(1); safetySetTextContent('stat-progress-percent', calculatedProgressPercent + '%');
+  } catch (err) { console.error(err); }
+}
+
+async function fetchPopulationListFromServer() {
+  toggleLoaderDisplay(true);
+  try {
+    const dataRows = await supabaseSelectAll('data', '*', (q) => { 
+      if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') { 
+        let query = q.eq('moo', activeVhvSession.moo);
+        if (activeVhvSession.community && activeVhvSession.community.trim() !== "") {
+          query = query.eq('community', activeVhvSession.community);
+        }
+        return query;
+      } 
+      return q; 
+    });
+    const screenRows = await supabaseSelectAll('screening', '*');
+    populationDataset = (dataRows || []).map(r => {
+      const s = (screenRows || []).find(sc => sc.citizen_id.toString() === r.pid.toString());
+      let statusStr = "ยังไม่ได้คัดกรองปีนี้"; if (s) { statusStr = s.ncd_status; }
+      let communityStr = r.community && r.community.trim() !== "" ? ` ชุมชน${r.community}` : "";
+      return {
+        pid: r.pid, name: r.full_name, age: r.age, gender: r.gender,
+        address: `บ้านเลขที่ ${r.house_no || '-'} ม.${r.moo}${communityStr}`,
+        last_screening_status: statusStr, history_ht: r.history_ht || '-', history_dm: r.history_dm || '-',
+        old_weight: r.weight || '-', old_height: r.height || '-', old_waist: r.waist || '-',
+        screen_id: s ? s.id : '', screen_weight: s ? s.weight : '', screen_height: s ? s.height : '',
+        screen_waist: s ? s.waist : '', screen_sbp: s ? s.bp_sys : '', screen_dbp: s ? s.bp_dia : '',
+        screen_bsl: s ? s.fbs : '', screen_smoking: s ? s.smoking : 'ไม่สูบ',
+        screen_alcohol: s ? s.alcohol : 'ไม่ดื่ม', screen_exercise: s ? s.exercise : 'เพียงพอ'
+      };
+    });
+    toggleLoaderDisplay(false); executeTableFilter(false);
+  } catch (err) { toggleLoaderDisplay(false); Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message }); }
+}
+
+function executeTableFilter(isFromUserInput = false) {
+  clearTimeout(tableSearchDebounceTimeout);
+  tableSearchDebounceTimeout = setTimeout(() => {
+    const q = document.getElementById('inputSearchQuery').value.toLowerCase(); const st = document.getElementById('selectFilterStatus').value;
+    displayFilteredDataset = populationDataset.filter(r => { return (r.name.toLowerCase().includes(q) || r.pid.toString().includes(q)) && (st === "" || r.last_screening_status.includes(st)); });
+    if (isFromUserInput) { tableCurrentPage = 1; }
+    const maxPage = Math.ceil(displayFilteredDataset.length / rowsPerPageLimit) || 1; tableCurrentPage = Math.max(1, Math.min(tableCurrentPage, maxPage)); renderPopulationTableElements();
+  }, 300);
+}
+
+function renderPopulationTableElements() {
+  const tbody = document.getElementById('populationTableBody'); if (!tbody) return; tbody.innerHTML = '';
+  if (displayFilteredDataset.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-3 text-muted fs-4">ไม่พบรายชื่อประชากร</td></tr>'; safetySetTextContent('labelTablePaginationInfo', 'แสดงข้อมูล 0 รายการ');
+    const pWrapper = document.getElementById('paginationWrapper'); if (pWrapper) pWrapper.innerHTML = ''; return;
+  }
+  const st = (tableCurrentPage - 1) * rowsPerPageLimit; const ed = Math.min(st + rowsPerPageLimit, displayFilteredDataset.length); const slice = displayFilteredDataset.slice(st, ed);
+  slice.forEach(item => {
+    let bStyle = "bg-secondary"; let bLabel = `<i class="fa fa-stethoscope"></i> เริ่มคัดกรอง`; let bClass = "btn-primary";
+    if (item.last_screening_status.includes('เขียว') || item.last_screening_status.includes('ปกติ')) { bStyle = "bg-success"; bLabel = `<i class="fa fa-edit"></i> แก้ไขข้อมูล`; bClass = "btn-warning text-dark"; }
+    else if (item.last_screening_status.includes('เหลือง') || item.last_screening_status.includes('เสี่ยง')) { bStyle = "bg-warning text-dark"; bLabel = `<i class="fa fa-edit"></i> แก้ไขข้อมูล`; bClass = "btn-warning text-dark"; }
+    else if (item.last_screening_status.includes('แดง') || item.last_screening_status.includes('สงสัย')) { bStyle = "bg-danger"; bLabel = `<i class="fa fa-edit"></i> แก้ไขข้อมูล`; bClass = "btn-warning text-dark"; }
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td data-label="ทะเบียน PID">${item.pid}</td><td data-label="ชื่อ - นามสกุล" class="fs-3 text-primary">${item.name}</td><td data-label="อายุ">${item.age} ปี</td><td data-label="ที่อยู่ปัจจุบัน" class="small text-muted">${item.address}</td><td data-label="ผลตรวจปีนี้"><span class="badge ${bStyle} fs-5">${item.last_screening_status}</span></td><td data-label="กดคัดกรอง" class="text-center w-100"><button class="btn ${bClass} btn-lg rounded-pill px-4 w-100" onclick="openScreeningFormWindow('${item.pid}')">${bLabel}</button></td>`; tbody.appendChild(tr);
+  });
+  safetySetTextContent('labelTablePaginationInfo', `แสดงรายการที่ ${st + 1} ถึง ${ed} จากทั้งหมด ${displayFilteredDataset.length} คน`); compileSmartPaginationLinks(tableCurrentPage, displayFilteredDataset.length, 'paginationWrapper', 'shiftTablePage');
+}
+
+function openScreeningFormWindow(pid) {
+  const citizen = populationDataset.find(c => c.pid.toString() === pid.toString()); if (!citizen) return;
+  const form = document.getElementById('ncdForm'); if (form) form.reset(); changeViewWindow('form');
+  safetySetInputValue('form_pid', citizen.pid); safetySetInputValue('form_name', citizen.name); safetySetInputValue('form_age', citizen.age); safetySetInputValue('form_gender', citizen.gender);
+  safetySetTextContent('form_hist_ht', citizen.history_ht); safetySetTextContent('form_hist_dm', citizen.history_dm);
+  safetySetTextContent('label_old_weight', `(ค่าตรวจเดิม: ${citizen.old_weight} กก.)`); safetySetTextContent('label_old_height', `(ค่าตรวจเดิม: ${citizen.old_height} ซม.)`); safetySetTextContent('label_old_waist', `(ค่าตรวจเดิม: ${citizen.old_waist} ซม.)`);
+  const inWeightField = document.getElementById('in_weight'); const inHeightField = document.getElementById('in_height'); const inWaistField = document.getElementById('in_waist');
+  if (inWeightField) inWeightField.placeholder = "0.0"; if (inWaistField) inWaistField.placeholder = "0.0"; if (inHeightField) inHeightField.placeholder = "0.0";
+  if (citizen.screen_id && citizen.screen_id !== "") {
+    safetySetInputValue('form_record_id', citizen.screen_id); safetySetInputValue('in_weight', citizen.screen_weight); safetySetInputValue('in_height', citizen.screen_height); safetySetInputValue('in_waist', citizen.screen_waist); safetySetInputValue('in_sbp', citizen.screen_sbp); safetySetInputValue('in_dbp', citizen.screen_dbp); safetySetInputValue('in_bsl', citizen.screen_bsl);
+    const sInput = document.getElementById(citizen.screen_smoking.includes("สูบ") ? 'sm_yes' : 'sm_no'); if (sInput) sInput.checked = true;
+    const aInput = document.getElementById(citizen.screen_alcohol.includes("ดื่ม") ? 'alc_yes' : 'alc_no'); if (aInput) aInput.checked = true;
+    const eInput = document.getElementById(citizen.screen_exercise.includes("ไม่เพียงพอ") ? 'ex_low' : 'ex_ok'); if (eInput) eInput.checked = true;
+  } else { safetySetInputValue('form_record_id', ""); safetySetInputValue('in_weight', ""); safetySetInputValue('in_waist', ""); safetySetInputValue('in_height', citizen.old_height || ""); }
+  toggleBehaviorFreqPanel('smoke'); toggleBehaviorFreqPanel('alc'); toggleBehaviorFreqPanel('ex');
+  attachRealtimeClinicalCalculationListeners(); runClinicalEvaluationEngine();
+  setTimeout(function() { window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; }, 80);
+}
+
+function attachRealtimeClinicalCalculationListeners() {
+  document.querySelectorAll('.calc-hook').forEach(el => { el.removeEventListener('input', runClinicalEvaluationEngine); el.addEventListener('input', runClinicalEvaluationEngine); });
+  document.querySelectorAll('input[type="radio"]').forEach(el => { el.removeEventListener('change', runClinicalEvaluationEngine); el.addEventListener('change', runClinicalEvaluationEngine); });
+}
+
+function runClinicalEvaluationEngine() {
+  const wEl = document.getElementById('in_weight'); const hEl = document.getElementById('in_height'); const sbpEl = document.getElementById('in_sbp'); const dbpEl = document.getElementById('in_dbp'); const bslEl = document.getElementById('in_bsl'); const waistEl = document.getElementById('in_waist');
+  const ageEl = document.getElementById('form_age'); const genderEl = document.getElementById('form_gender'); if (!wEl || !hEl || !sbpEl || !dbpEl || !bslEl || !waistEl) return;
+  
+  const w = parseFloat(wEl.value) || 0; const h = parseFloat(hEl.value) || 0; const sbp = parseInt(sbpEl.value) || 0; const dbp = parseInt(dbpEl.value) || 0; const bsl = parseInt(bslEl.value) || 0; const waist = parseFloat(waistEl.value) || 0;
+  const age = parseInt(ageEl ? ageEl.value : 0) || 0; const gender = (genderEl ? genderEl.value : 'ชาย').trim();
+
+  let bmiVal = 0; let bmiDisp = "-"; let bRule = null;
+  if (w > 0 && h > 0) { bmiVal = w / Math.pow(h / 100, 2); bmiDisp = bmiVal.toFixed(2); bRule = masterHealthRules.find(r => r.category==='BMI' && bmiVal>=parseFloat(r.min_value) && bmiVal<=parseFloat(r.max_value)); }
+  const bmiTextString = bmiDisp + (bRule ? ` (${bRule.result})` : ''); safetySetTextContent('rt-bmi', bmiTextString); safetySetTextContent('share-bmi', bmiTextString);
+
+  let bpStat = "รอกรอกตัวเลข"; let bpColor = "bg-secondary";
+  if (sbp > 0 || dbp > 0) {
+    if (sbp >= 180 || dbp >= 110) { bpStat = "สูงวิกฤต (Stage 3)"; bpColor = "bg-danger"; }
+    else if (sbp >= 160 || dbp >= 100) { bpStat = "สูงอันตราย (Stage 2)"; bpColor = "bg-danger"; }
+    else if (sbp >= 140 || dbp >= 90) { bpStat = "ความดันโลหิตสูง (Stage 1)"; bpColor = "bg-warning text-dark"; }
+    else if (sbp >= 120 || dbp >= 80) { bpStat = "ค่อนข้างสูง (Pre-HT)"; bpColor = "bg-warning text-dark"; }
+    else { bpStat = "ปกติ (Normal)"; bpColor = "bg-success"; }
+  }
+  safetySetTextContent('rt-bp', bpStat); safetySetTextContent('share-bp', bpStat);
+  const bpBadge = document.getElementById('rt-bp'); if (bpBadge) bpBadge.className = `badge fs-5 px-3 py-2 ${bpColor}`;
+
+  let dmStat = "รอกรอกตัวเลข"; let dmColor = "bg-secondary"; let dmRule = masterHealthRules.find(r => r.category==='FBS' && bsl>=parseFloat(r.min_value) && bsl<=parseFloat(r.max_value));
+  if (bsl > 0) { if(dmRule){ dmStat = dmRule.risk_level; dmColor = dmRule.color==='success'?'bg-success':(dmRule.color==='warning'?'bg-warning text-dark':'bg-danger'); }}
+  safetySetTextContent('rt-bsl', dmStat); safetySetTextContent('share-bsl', dmStat);
+  const dmBadge = document.getElementById('rt-bsl'); if (dmBadge) dmBadge.className = `badge fs-5 px-3 py-2 ${dmColor}`;
+
+  let waistLimit = (gender === 'ชาย' || gender === 'Male') ? 90 : 80;
+  let isObese = (waist > waistLimit);
+
+  let cvdStat = "รอกรอกตัวเลข"; let cvdColor = "bg-secondary"; const cvdBadge = document.getElementById('rt-cvd');
+  if (age >= 35 && sbp > 0) {
+    let isSmoker = document.getElementById('sm_yes') && document.getElementById('sm_yes').checked; let isDM = (bsl >= 126);
+    let cvdPoints = 0;
+    if (gender === 'ชาย' || gender === 'Male') { if (age >= 65) cvdPoints += 4; else if (age >= 55) cvdPoints += 3; else if (age >= 45) cvdPoints += 2; else cvdPoints += 1; } 
+    else { if (age >= 65) cvdPoints += 3; else if (age >= 55) cvdPoints += 2; else if (age >= 45) cvdPoints += 1; }
+    if (isSmoker) cvdPoints += 2; if (isDM) cvdPoints += 3; if (isObese) cvdPoints += 1;
+    if (sbp >= 180) cvdPoints += 4; else if (sbp >= 160) cvdPoints += 3; else if (sbp >= 140) cvdPoints += 2; else if (sbp >= 120) cvdPoints += 1;
+    if (cvdPoints >= 10) { cvdStat = "เสี่ยงสูงมาก (>=30%)"; cvdColor = "bg-danger"; }
+    else if (cvdPoints >= 8) { cvdStat = "เสี่ยงสูง (20-<30%)"; cvdColor = "bg-danger"; }
+    else if (cvdPoints >= 6) { cvdStat = "เสี่ยงปานกลาง (10-<20%)"; cvdColor = "bg-warning text-dark"; }
+    else { cvdStat = "เสี่ยงน้อย (<10%)"; cvdColor = "bg-success"; }
+    safetySetTextContent('rt-cvd', cvdStat); safetySetTextContent('share-cvd', cvdStat); if (cvdBadge) cvdBadge.className = `badge fs-5 px-3 py-2 ${cvdColor}`;
+  } else {
+    cvdStat = age < 35 && sbp > 0 ? "เสี่ยงน้อย (<35 ปี)" : "รอกรอกตัวเลข"; cvdColor = age < 35 && sbp > 0 ? "bg-success" : "bg-secondary";
+    safetySetTextContent('rt-cvd', cvdStat); safetySetTextContent('share-cvd', cvdStat); if (cvdBadge) cvdBadge.className = `badge fs-5 px-3 py-2 ${cvdColor}`;
+  }
+
+  let exTxt = ""; 
+  if (waist > 0) {
+    if (isObese) { exTxt += `<br>⚠️ <strong>ดัชนีรอบเอว (${gender}):</strong> เกินเกณฑ์มาตรฐาน (รอบเอวของท่านคือ ${waist} ซม. / เกณฑ์ปกติของเพศนี้ต้องไม่เกิน ${waistLimit} ซม.) มีภาวะอ้วนลงพุง`; } 
+    else { exTxt += `<br>✅ <strong>ดัชนีรอบเอว (${gender}):</strong> อยู่ในเกณฑ์ปลอดภัย (รอบเอวของท่านคือ ${waist} ซม. / เกณฑ์ปกติของเพศนี้ต้องไม่เกิน ${waistLimit} ซม.)`; }
+  }
+
+  const box = document.getElementById('rt-summary-box'); const tSt = document.getElementById('rt-status-text'); const tAd = document.getElementById('rt-advice-text'); if (!box || !tSt || !tAd) return;
+  if (sbp >= 140 || dbp >= 90 || bsl >= 126 || bpColor === 'bg-danger' || dmColor === 'bg-danger') {
+    tSt.innerText = "กลุ่มสงสัยป่วยรายใหม่ (สีแดง)"; tAd.innerHTML = `<strong>💡 คำแนะนำประเมินตนเอง:</strong> ผลตรวจสัญญาณชีพของท่านวันนี้สูงกว่าเกณฑ์ปกติ แนะนำให้ท่านงดกิจกรรมที่ใช้แรงหนัก หลีกเลี่ยงอาหารรสเค็มจัดหรือหวานจัดชั่วคราว และขอเชิญท่านเข้าพบเจ้าหน้าที่สาธารณสุข ณ อนามัย ภายในสัปดาห์นี้ เพื่อตรวจยืนยันความถูกต้องและรับคำแนะนำอย่างเหมาะสมต่อไปครับ` + exTxt;
+    box.style.borderColor = "#dc2626"; box.style.backgroundColor = "#fee2e2"; tSt.className = "fw-black my-2 fs-2 text-danger";
+  } else if (sbp >= 120 || dbp >= 80 || bsl >= 100 || bmiVal >= 23 || cvdColor.includes('warning')) {
+    tSt.innerText = "กลุ่มเสี่ยงโรคเรื้อรัง (สีเหลือง)"; box.style.borderColor = "#ca8a04"; box.style.backgroundColor = "#fef9c3"; tSt.className = "fw-black my-2 fs-2 text-warning-dark";
+    tAd.innerHTML = `<strong>💡 คำแนะนำประเมินตนเอง:</strong> ร่างกายของท่านเริ่มส่งสัญญาณเตือนว่ามีความเสี่ยงต่อโรค NCDs แนะนำให้ปรับเปลี่ยนพฤติกรรมในชีวิตประจำวัน โดยลดการบริโภคอาหารรสหวาน มัน เค็ม เพิ่มการรับประทานผักผลไม้ และออกกำลังกายหรือแกว่งแขนอย่างน้อยวันละ 30 นาที แล้วอีก 6 เดือนมาติดตามดูระดับตัวเลขสุขภาพร่วมกับ อสม. อีกครั้งนะครับ` + exTxt;
+  } else if (w > 0 && h > 0) {
+    tSt.innerText = "กลุ่มปกติ สุขภาพดี (สีเขียว)"; box.style.borderColor = "#16a34a"; box.style.backgroundColor = "#dcfce7"; tSt.className = "fw-black my-2 fs-2 text-success";
+    tAd.innerHTML = `<strong>💡 คำแนะนำประเมินตนเอง:</strong> ยินดีด้วยครับ ผลการตรวจร่างกายโดยรวมของท่านอยู่ในเกณฑ์ปกติและสุขภาพแข็งแรงดีเยี่ยม ขอให้ท่านรักษาวินัยในการเลือกรับประทานอาหารที่มีประโยชน์และออกกำลังกายอย่างสม่ำเสมอแบบนี้ต่อไป และร่วมตรวจประเมินสุขภาพประจำปีกับ อสม. อีกครั้งในปีหน้านะครับ` + exTxt;
+  } else { tSt.innerText = "ระบบรอคีย์ข้อมูล"; tAd.innerText = "กรอกตัวเลขเพื่อคำนวณผล"; box.style.borderColor = "#cbd5e0"; box.style.backgroundColor = "#f8f9fa"; tSt.className = "text-muted fs-4"; }
+}
+
+function toggleBehaviorFreqPanel(cat) {
+  const smYes = document.getElementById('sm_yes'); const alcYes = document.getElementById('alc_yes'); const exLow = document.getElementById('ex_low');
+  if (cat === 'smoke' && smYes) document.getElementById('panel_freq_smoke').classList.toggle('d-none', !smYes.checked);
+  else if (cat === 'alc' && alcYes) document.getElementById('panel_freq_alc').classList.toggle('d-none', !alcYes.checked);
+  else if (cat === 'ex' && exLow) document.getElementById('panel_freq_ex').classList.toggle('d-none', !exLow.checked);
+}
+
+async function submitFormScreeningData(e) {
+  e.preventDefault(); const form = document.getElementById('ncdForm'); const wRaw = document.getElementById('in_weight').value; const hRaw = document.getElementById('in_height').value; const waistRaw = document.getElementById('in_waist').value; const sbpRaw = document.getElementById('in_sbp').value; const dbpRaw = document.getElementById('in_dbp').value; const bslRaw = document.getElementById('in_bsl').value;
+  if (wRaw === "" || hRaw === "" || waistRaw === "" || sbpRaw === "" || dbpRaw === "" || bslRaw === "") { Swal.fire({ icon: 'error', title: 'ไม่สามารถบันทึกข้อมูลได้', text: 'ขออภัยด้วยครับ บังคับว่าหากกรอกข้อมูลไม่ครบทุกช่องสัญญาณชีพ ระบบจะไม่ยินยอมให้ทำการบันทึกข้อมูลเด็ดขาด โปรดตรวจทานช่องที่ว่างอยู่ครับ!' }); if (form) form.classList.add('was-validated'); return; }
+  const sbp = parseInt(sbpRaw); const dbp = parseInt(dbpRaw); const bsl = parseInt(bslRaw);
+  if (sbp<60 || sbp>200 || dbp<30 || dbp>120 || bsl<40 || bsl>600) { Swal.fire({ icon: 'error', title: 'ตัวเลขคลาดเคลื่อน', text: 'ข้อมูลสัญญาณชีพผิดขอบเขตมาตรฐานสาธารณสุข โปรดตรวจทานอีกรอบครับ!' }); return; }
+  let recId = document.getElementById('form_record_id').value; const citizenIdVal = document.getElementById('form_pid').value; if (!recId || recId === "") { recId = `SCR-${citizenIdVal}-${new Date().getTime()}`; }
+  const payload = {
+    id: recId, citizen_id: parseInt(citizenIdVal), name: document.getElementById('form_name').value, age: parseInt(document.getElementById('form_age').value), gender: document.getElementById('form_gender').value, weight: parseFloat(wRaw), height: parseFloat(hRaw), bmi: parseFloat(document.getElementById('rt-bmi').innerText) || 0, waist: parseFloat(waistRaw), bp_sys: sbp, bp_dia: dbp, bp_status: document.getElementById('rt-bp').innerText, fbs: bsl, fbs_status: document.getElementById('rt-bsl').innerText,
+    smoking: document.getElementById('sm_yes').checked ? `สูบ (${document.getElementById('sel_freq_smoke').value})` : "ไม่สูบ", alcohol: document.getElementById('alc_yes').checked ? `ดื่ม (${document.getElementById('sel_freq_alc').value})` : "ไม่ดื่ม", exercise: document.getElementById('ex_ok').checked ? "เพียงพอ" : `ไม่เพียงพอ (${document.getElementById('sel_freq_ex').value})`, cvd_risk: document.getElementById('rt-cvd').innerText, ncd_status: document.getElementById('rt-status-text').innerText, date: new Date().toLocaleDateString('th-TH'), operator: activeVhvSession.name
+  };
+  toggleLoaderDisplay(true); 
+  try {
+    const { error: screenErr } = await db.from('screening').upsert([payload]); if (screenErr) throw screenErr;
+    await db.from('data').update({ screening_date: new Date().toISOString().split('T')[0], weight: parseFloat(wRaw), height: parseFloat(hRaw), waist: parseFloat(waistRaw), sbp: sbp, dbp: dbp, bsl: bsl, interpretation_ht: document.getElementById('rt-bp').innerText, interpretation_dm: document.getElementById('rt-bsl').innerText }).eq('pid', citizenIdVal);
+    toggleLoaderDisplay(false); Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false }); changeViewWindow('list'); 
+  } catch (err) { toggleLoaderDisplay(false); Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message }); }
+}
+
+function renderHealthRulesTable() {
+  const tbody = document.getElementById('healthRulesTableBody'); if (!tbody) return; tbody.innerHTML = '';
+  
+  masterHealthRules.forEach(r => { 
+    if(['BMI','BP','FBS'].indexOf(r.category) !== -1) { 
+      tbody.innerHTML += `<tr><td data-label="ดัชนีชี้วัด"><span class="badge bg-primary fs-5 px-3 py-2">${r.category}</span></td><td data-label="ช่วงระดับเกณฑ์" class="fs-4">ช่วงค่า: ${r.min_value} - ${r.max_value}</td><td data-label="ผลการวิเคราะห์" class="fs-4 text-dark fw-bold">${r.result}</td><td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">${r.advice}</td></tr>`; 
+    } 
+  });
+
+  tbody.innerHTML += `
+    <tr>
+      <td data-label="ดัชนีชี้วัด"><span class="badge bg-info fs-5 px-3 py-2">รอบเอว (ชาย)</span></td>
+      <td data-label="ช่วงระดับเกณฑ์" class="fs-4">ไม่เกิน 90 เซนติเมตร (หรือ ไม่เกิน ส่วนสูง ÷ 2)</td>
+      <td data-label="ผลการวิเคราะห์" class="fs-4 text-success fw-bold">ปกติ</td>
+      <td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">รอบเอวอยู่ในเกณฑ์ปลอดภัย ดัชนีรอบเอวสมส่วน ไม่มีความเสี่ยงภาวะอ้วนลงพุง</td>
+    </tr>
+    <tr>
+      <td data-label="ดัชนีชี้วัด"><span class="badge bg-danger fs-5 px-3 py-2">รอบเอว (ชาย)</span></td>
+      <td data-label="ช่วงระดับเกณฑ์" class="fs-4">ตั้งแต่ 91 เซนติเมตร ขึ้นไป (หรือ เกินเกณฑ์ ส่วนสูง ÷ 2)</td>
+      <td data-label="ผลการวิเคราะห์" class="fs-4 text-danger fw-bold">อ้วนลงพุง</td>
+      <td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">มีภาวะอ้วนลงพุง เสี่ยงต่อโรคแทรกซ้อนหลอดเลือดหัวใจ สมอง และเบาหวานรายใหม่</td>
+    </tr>
+    <tr>
+      <td data-label="ดัชนีชี้วัด"><span class="badge fs-5 px-3 py-2 text-white" style="background-color: #db2777;">รอบเอว (หญิง)</span></td>
+      <td data-label="ช่วงระดับเกณฑ์" class="fs-4">ไม่เกิน 80 เซนติเมตร (หรือ ไม่เกิน ส่วนสูง ÷ 2)</td>
+      <td data-label="ผลการวิเคราะห์" class="fs-4 text-success fw-bold">ปกติ</td>
+      <td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">รอบเอวอยู่ในเกณฑ์ปลอดภัย ดัชนีรอบเอวสมส่วน ไม่มีความเสี่ยงภาวะอ้วนลงพุง</td>
+    </tr>
+    <tr>
+      <td data-label="ดัชนีชี้วัด"><span class="badge fs-5 px-3 py-2 text-white" style="background-color: #9d174d;">รอบเอว (หญิง)</span></td>
+      <td data-label="ช่วงระดับเกณฑ์" class="fs-4">ตั้งแต่ 81 เซนติเมตร ขึ้นไป (หรือ เกินเกณฑ์ ส่วนสูง ÷ 2)</td>
+      <td data-label="ผลการวิเคราะห์" class="fs-4 text-danger fw-bold">อ้วนลงพุง</td>
+      <td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">มีภาวะอ้วนลงพุง เสี่ยงต่อโรคแทรกซ้อนหลอดเลือดหัวใจ สมอง และเบาหวานรายใหม่</td>
+    </tr>
+  `;
+}
+
+async function fetchVhvPerformanceReportFromServer() { 
+  toggleLoaderDisplay(true); 
+  try {
+    const { data: dataRows } = await db.from('data').select('vhv_name, moo, pid, community'); const { data: screenRows } = await db.from('screening').select('citizen_id');
+    let vhvMap = {}; const screenedPids = screenRows ? screenRows.map(s => s.citizen_id.toString()) : [];
+    
+    let filteredDataRows = dataRows || [];
+    if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') {
+      filteredDataRows = filteredDataRows.filter(r => r.moo === activeVhvSession.moo && (!activeVhvSession.community || r.community === activeVhvSession.community));
+    }
+
+    filteredDataRows.forEach(r => {
+      let vhvName = r.vhv_name; if(!vhvName || vhvName.trim() === "") return;
+      if(!vhvMap[vhvName]) { vhvMap[vhvName] = { name: vhvName, moo: r.moo || 3, target: 0, done: 0 }; }
+      vhvMap[vhvName].target++; if (screenedPids.includes(r.pid.toString())) { vhvMap[vhvName].done++; }
+    });
+    masterVhvPerformanceList = Object.values(vhvMap).map(v => { let pending = v.target - v.done; let percentage = ((v.done / v.target) * 100).toFixed(1); return { name: v.name, moo: v.moo, target: v.target, done: v.done, pending: pending, percentage: percentage }; });
+    toggleLoaderDisplay(false); const maxPage = Math.ceil(masterVhvPerformanceList.length / rowsPerPageLimit) || 1; perfCurrentPage = Math.max(1, Math.min(perfCurrentPage, maxPage)); renderVhvPerformanceTable(); 
+  } catch(err) { toggleLoaderDisplay(false); }
+}
+
+function renderVhvPerformanceTable() {
+  const tbody = document.getElementById('vhvPerformanceTableBody'); if (!tbody) return; tbody.innerHTML = ''; if(masterVhvPerformanceList.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="text-center">ไม่พบรายงาน</td></tr>'; return; }
+  const st = (perfCurrentPage - 1) * rowsPerPageLimit; const ed = Math.min(st + rowsPerPageLimit, masterVhvPerformanceList.length); const slice = masterVhvPerformanceList.slice(st, ed);
+  slice.forEach(item => { tbody.innerHTML += `<tr><td data-label="ชื่อ อสม.">${item.name}</td><td data-label="หมู่ที่">หมู่ที่ ${item.moo}</td><td data-label="เป้าหมายทั้งหมด">${item.target} คน</td><td data-label="คัดกรองแล้ว" class="text-success">${item.done} คน</td><td data-label="คงเหลือ" class="text-danger">${item.pending} คน</td><td data-label="ร้อยละผลงาน"><div class="d-flex align-items-center gap-2 w-100 justify-content-end justify-content-md-start"><div class="progress flex-grow-1 d-none d-md-flex" style="height:12px; min-width:100px;"><div class="progress-bar bg-success" style="width:${item.percentage}%"></div></div><span>${item.percentage}%</span></div></td></tr>`; });
+  safetySetTextContent('labelPerfPaginationInfo', `รายงานแถวที่ ${st+1} ถึง ${ed} จากทั้งหมด ${masterVhvPerformanceList.length} อสม.`); compileSmartPaginationLinks(perfCurrentPage, masterVhvPerformanceList.length, 'paginationPerfWrapper', 'shiftPerfPage');
+}
+
+async function fetchManagementTargetsFromServer() { 
+  toggleLoaderDisplay(true); 
+  try {
+    const records = await supabaseSelectAll('data', 'pid, full_name, age, house_no, moo, vhv_name, area_status, community', (q) => {
+      if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') {
+        let query = q.eq('moo', activeVhvSession.moo);
+        if (activeVhvSession.community && activeVhvSession.community.trim() !== "") {
+          query = query.eq('community', activeVhvSession.community);
+        }
+        return query;
+      }
+      return q;
+    }); 
+    toggleLoaderDisplay(false); 
+    masterTargetMgList = (records || []).map(r => {
+      let communityStr = r.community && r.community.trim() !== "" ? ` ชุมชน${r.community}` : "";
+      return { pid: r.pid, name: r.full_name, age: r.age, address: `บ้านเลขที่ ${r.house_no || '-'} ม.${r.moo}${communityStr}`, vhv_name: r.vhv_name || '-', status_area: r.area_status || 'อยู่ในพื้นที่' };
+    });
+    executeTargetMgTableFilter(false);
+  } catch (err) { toggleLoaderDisplay(false); }
+}
+
+function executeTargetMgTableFilter(isFromUserInput = false) { 
+  clearTimeout(targetMgSearchDebounceTimeout);
+  targetMgSearchDebounceTimeout = setTimeout(() => {
+    const q = document.getElementById('inputSearchTargetMg').value.toLowerCase(); const residencyStatusFilter = document.getElementById('selectTargetMgStatus') ? document.getElementById('selectTargetMgStatus').value : '';
+    filteredTargetMgList = masterTargetMgList.filter(r => { const matchText = r.name.toLowerCase().includes(q); let matchResidency = true; if (residencyStatusFilter === "อยู่ในพื้นที่") { matchResidency = (r.status_area !== "ไม่อยู่ในพื้นที่"); } else if (residencyStatusFilter === "ไม่อยู่ในพื้นที่") { matchResidency = (r.status_area === "ไม่อยู่ในพื้นที่"); } return matchText && matchResidency; });
+    if (isFromUserInput) { tgtMgCurrentPage = 1; }
+    const maxPage = Math.ceil(filteredTargetMgList.length / rowsPerPageLimit) || 1; tgtMgCurrentPage = Math.max(1, Math.min(tgtMgCurrentPage, maxPage)); renderTargetMgTable(); 
+  }, 300);
+}
+
+function renderTargetMgTable() {
+  const tbody = document.getElementById('targetMgTableBody'); if (!tbody) return; tbody.innerHTML = ''; if(filteredTargetMgList.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">ไม่พบประวัติ</td></tr>'; return; }
+  const st = (tgtMgCurrentPage - 1) * rowsPerPageLimit; const ed = Math.min(st + rowsPerPageLimit, filteredTargetMgList.length); const slice = filteredTargetMgList.slice(st, ed);
+  slice.forEach(item => {
+    const isChecked = item.status_area !== 'ไม่อยู่ในพื้นที่' ? 'checked' : ''; const statusLabel = item.status_area !== 'ไม่อยู่ในพื้นที่' ? '<span class="text-success fw-bold"><i class="fa fa-home"></i> อยู่ในพื้นที่</span>' : '<span class="text-danger fw-bold"><i class="fa fa-plane-departure"></i> ไม่อยู่ในพื้นที่</span>';
+    tbody.innerHTML += `<tr><td data-label="ชื่อ - นามสกุลเป้าหมาย">${item.name}</td><td data-label="อายุ">${item.age} ปี</td><td data-label="ที่อยู่ปัจจุบัน" class="small text-muted">${item.address}</td><td data-label="อสม. ผู้รับผิดชอบ">${item.vhv_name}</td><td data-label="สถานะถิ่นพำนักปัจจุบัน" class="text-center print-hide"><div class="d-flex flex-row flex-md-column align-items-center justify-content-end justify-content-md-center gap-2 w-100"><div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" role="switch" ${isChecked} onchange="toggleTargetLocationState('${item.pid}', this)"></div><div class="fs-6">${statusLabel}</div></div></td></tr>`;
+  });
+  safetySetTextContent('labelTgtMgPaginationInfo', `แถวเป้าหมายที่ ${st+1} ถึง ${ed} จากทั้งหมด ${filteredTargetMgList.length} คน`); compileSmartPaginationLinks(tgtMgCurrentPage, filteredTargetMgList.length, 'paginationTgtMgWrapper', 'shiftTgtMgPage');
+}
+
+async function toggleTargetLocationState(pid, el) { 
+  const statusStr = el.checked ? 'อยู่ในพื้นที่' : 'ไม่อยู่ในพื้นที่'; const { error } = await db.from('data').update({ area_status: statusStr }).eq('pid', pid);
+  if(!error) { const idx = masterTargetMgList.findIndex(t => t.pid.toString() === pid.toString()); if(idx !== -1) masterTargetMgList[idx].status_area = statusStr; executeTargetMgTableFilter(false); } 
+}
+
+function executeSaveLogoConfig() { const url = document.getElementById('inputAgencyLogoUrl').value.trim(); localStorage.setItem('agencyLogoUrl', url); const img = document.getElementById('menuHeaderLogo'); if (img) img.src = url; Swal.fire({ icon: 'success', title: 'อัปเดตโลโก้สำเร็จ' }); }
+
+async function fetchUserAccountsFromServer() {
+  toggleLoaderDisplay(true);
+  try {
+    const { data: users } = await db.from('users').select('*').order('id', { ascending: true });
+    toggleLoaderDisplay(false); const tbody = document.getElementById('usersTableBody'); if (!tbody) return; tbody.innerHTML = '';
+    if (users) {
+      users.forEach(u => {
+        let editBtn = `<button class="btn btn-sm btn-warning fw-bold fs-6 rounded-pill px-3 me-2" onclick="openEditUserModal(${JSON.stringify(u).replace(/"/g, '&quot;')})"><i class="fa-solid fa-user-pen"></i> แก้ไข</button>`;
+        let deleteBtn = `<button class="btn btn-sm btn-danger fw-bold fs-6 rounded-pill px-3" onclick="executeUserCrudAction('DELETE', ${u.id})"><i class="fa fa-trash"></i> ลบ</button>`;
+        if(activeVhvSession.role === 'staff') { deleteBtn = `<span class="badge bg-light text-muted fs-6">ล็อกสิทธิ์การลบ</span>`; if (u.role === 'admin') { editBtn = `<span class="badge bg-light text-muted fs-6 me-2">ล็อกสิทธิ์จัดการ Admin</span>`; } }
+        tbody.innerHTML += `<tr><td data-label="รหัสผู้ใช้">${u.id}</td><td data-label="ชื่อผู้ใช้">${u.username}</td><td data-label="รหัสผ่าน"><code>${u.password}</code></td><td data-label="สิทธิ์ระบบ"><span class="badge bg-secondary">${u.role}</span></td><td data-label="ชื่อ - นามสกุล">${u.full_name}</td><td data-label="หมู่ที่">หมู่ ${u.moo}</td><td data-label="จัดการคำสั่ง" class="text-center w-100">${editBtn} ${deleteBtn}</td></tr>`;
+      });
+    }
+  } catch (err) { toggleLoaderDisplay(false); }
+}
+
+function openAddUserModal() {
+  const form = document.getElementById('userActionForm'); if (form) form.reset(); safetySetInputValue('modal_user_id', ""); safetySetTextContent('userModalTitle', "เพิ่มบัญชีรายชื่อ อสม. คณะทำงานใหม่");
+  const typeSelect = document.getElementById('modal_type'); if (typeSelect) { if (activeVhvSession.role === 'staff') { typeSelect.value = 'user'; typeSelect.disabled = true; } else { typeSelect.disabled = false; } }
+  if (bootstrapUserModalInstance) bootstrapUserModalInstance.show();
+}
+
+function openEditUserModal(uObj) {
+  safetySetInputValue('modal_user_id', uObj.id); safetySetInputValue('modal_user', uObj.username); safetySetInputValue('modal_pass', uObj.password); safetySetInputValue('modal_fullname', uObj.full_name); safetySetInputValue('modal_type', uObj.role); safetySetInputValue('modal_moo', uObj.moo); safetySetInputValue('modal_pid_อสม', uObj.pid_vhv);
+  safetySetTextContent('userModalTitle', "แก้ไขข้อมูลระเบียบบัญชี อสม.");
+  const typeSelect = document.getElementById('modal_type'); if (typeSelect) { typeSelect.disabled = (activeVhvSession.role === 'staff'); }
+  if (bootstrapUserModalInstance) bootstrapUserModalInstance.show();
+}
+
+async function executeSaveUserForm(e) {
+  e.preventDefault(); const uid = document.getElementById('modal_user_id').value;
+  const payload = {
+    username: document.getElementById('modal_user').value.trim(), password: document.getElementById('modal_pass').value.trim(),
+    full_name: document.getElementById('modal_fullname').value.trim(), role: document.getElementById('modal_type').value,
+    moo: parseInt(document.getElementById('modal_moo').value) || 0, pid_vhv: document.getElementById('modal_pid_อสม').value.trim(), community: ''
+  };
+  toggleLoaderDisplay(true);
+  try {
+    if(uid === "") {
+      const { data: allUsers } = await db.from('users').select('id');
+      const maxId = allUsers ? allUsers.reduce((max, u) => u.id > max ? u.id : max, 0) : 0;
+      payload.id = maxId + 1; await db.from('users').insert([payload]);
+    } else { await db.from('users').update(payload).eq('id', uid); }
+    toggleLoaderDisplay(false); if (bootstrapUserModalInstance) bootstrapUserModalInstance.hide(); fetchUserAccountsFromServer();
+    Swal.fire({ icon: 'success', title: 'ดำเนินการสำเร็จ', timer: 1200, showConfirmButton:false });
+  } catch (err) { toggleLoaderDisplay(false); Swal.fire({ icon: 'error', title: 'ไม่สามารถทำรายการได้', text: err.message }); }
+}
+
+async function executeUserCrudAction(action, userId) {
+  if(action === 'DELETE') {
+    Swal.fire({ title: 'ยืนยันการลบระเบียบบัญชีนี้?', text: "เมื่อยืนยันแล้ว บัญชี อสม. ดังกล่าวจะไม่สามารถเข้าสู่ระบบได้อีกต่อไป!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ลบข้อมูล' }).then(async (result) => {
+      if (result.isConfirmed) { toggleLoaderDisplay(true); await db.from('users').delete().eq('id', userId); toggleLoaderDisplay(false); fetchUserAccountsFromServer(); Swal.fire('ถูกลบแล้ว!', '', 'success'); }
+    });
+  }
+}
+
+async function fetchScreeningReportDataFromServer() {
+  toggleLoaderDisplay(true);
+  try {
+    let allowedPids = [];
+    if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') {
+      const allowedDataRows = await supabaseSelectAll('data', 'pid', (q) => {
+        let query = q.eq('moo', activeVhvSession.moo);
+        if (activeVhvSession.community && activeVhvSession.community.trim() !== "") {
+          query = query.eq('community', activeVhvSession.community);
+        }
+        return query;
+      });
+      allowedPids = allowedDataRows.map(r => r.pid.toString());
+    }
+
+    const records = await supabaseSelectAll('screening', '*'); toggleLoaderDisplay(false);
+    
+    let filteredReports = records || [];
+    if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') {
+      filteredReports = filteredReports.filter(r => allowedPids.includes(r.citizen_id.toString()));
+    }
+
+    masterReportList = filteredReports.map(r => ({ pid: r.citizen_id, name: r.name, date: r.date, weight: r.weight, height: r.height, waist: r.waist, sbp: r.bp_sys, dbp: r.bp_dia, bsl: r.fbs, smoking: r.smoking, alcohol: r.alcohol, exercise: r.exercise }));
+    const maxPage = Math.ceil(masterReportList.length / rowsPerPageLimit) || 1; reportCurrentPage = Math.max(1, Math.min(reportCurrentPage, maxPage)); renderReportTable();
+  } catch(err) { toggleLoaderDisplay(false); }
+}
+
+function renderReportTable() {
+  const tbody = document.getElementById('reportTableBody'); if (!tbody) return; tbody.innerHTML = '';
+  if (masterReportList.length === 0) { tbody.innerHTML = '<tr><td colspan="12" class="text-center text-muted py-4 fs-4">ยังไม่พบบันทึกประวัติการคัดกรอง NCDs ในระบบ</td></tr>'; return; }
+  const st = (reportCurrentPage - 1) * rowsPerPageLimit; const ed = Math.min(st + rowsPerPageLimit, masterReportList.length); const slice = masterReportList.slice(st, ed);
+  slice.forEach(r => { tbody.innerHTML += `<tr><td data-label="เลขทะเบียน PID">${r.pid}</td><td data-label="ชื่อ - นามสกุล">${r.name}</td><td data-label="วันที่คัดกรอง">${r.date}</td><td data-label="น้ำหนัก (กก.)">${r.weight}</td><td data-label="ส่วนสูง (ซม.)">${r.height}</td><td data-label="รอบเอว (ซม.)">${r.waist}</td><td data-label="SYS (บน)" class="text-danger">${r.sbp}</td><td data-label="DIA (ล่าง)" class="text-danger">${r.dbp}</td><td data-label="BSL (น้ำตาล)" class="text-success">${r.bsl}</td><td data-label="พฤติกรรมสูบบุหรี่">${r.smoking}</td><td data-label="การดื่มสุรา">${r.alcohol}</td><td data-label="การออกกำลังกาย">${r.exercise}</td></tr>`; });
+  safetySetTextContent('labelReportPaginationInfo', `รายงานแถวที่ ${st+1} ถึง ${ed} จากทั้งหมด ${masterReportList.length} รายการ`); compileSmartPaginationLinks(reportCurrentPage, masterReportList.length, 'paginationReportWrapper', 'shiftReportPage');
+}
+
+function executeExportReportToExcel() {
+  if (masterReportList.length === 0) { Swal.fire({ icon: 'error', title: 'ไม่พบข้อมูล', text: 'ไม่มีข้อมูลรายงานสำหรับการส่งออกไฟล์' }); return; }
+  const worksheetData = [["เลขทะเบียน PID", "ชื่อ - นามสกุล", "วันที่คัดกรอง", "น้ำหนัก (กก.)", "ส่วนสูง (ซม.)", "รอบเอว (ซม.)", "SYS (บน)", "DIA (ล่าง)", "BSL (น้ำตาล)", "พฤติกรรมสูบบุหรี่", "การดื่มสุรา", "การออกกำลังกาย"]];
+  masterReportList.forEach(r => { worksheetData.push([r.pid, r.name, r.date, r.weight, r.height, r.waist, r.sbp, r.dbp, r.bsl, r.smoking, r.alcohol, r.exercise]); });
+  const worksheet = XLSX.utils.aoa_to_sheet(worksheetData); const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, worksheet, "ทะเบียนรายงานคัดกรองเชิงรุก"); XLSX.writeFile(workbook, "รายงานทะเบียนคัดกรอง_Smart_NCD_Care_อนามัย.xlsx");
+}
+
+function executePrintReportPdfLandscape() { 
+  const tbody = document.getElementById('reportTableBody');
+  if (tbody && masterReportList.length > 0) {
+    let fullHtml = ''; masterReportList.forEach(r => { fullHtml += `<tr><td>${r.pid}</td><td>${r.name}</td><td>${r.date}</td><td>${r.weight}</td><td>${r.height}</td><td>${r.waist}</td><td class="text-danger">${r.sbp}</td><td class="text-danger">${r.dbp}</td><td class="text-success">${r.bsl}</td><td>${r.smoking}</td><td>${r.alcohol}</td><td>${r.exercise}</td></tr>`; }); tbody.innerHTML = fullHtml;
+  }
+  setTimeout(() => { window.print(); renderReportTable(); }, 500);
+}
+
+function executeSaveAdviceCardAsImage() {
+  const cardElement = document.getElementById('shareableAdviceCard'); const statusText = document.getElementById('rt-status-text').innerText;
+  if (statusText.includes("รอคีย์") || statusText.includes("กรอกตัวเลข")) { Swal.fire({ icon: 'warning', title: 'ไม่สามารถบันทึกได้', text: 'กรุณากรอกข้อมูลสัญญาณชีพและประมวลผลให้เรียร็จสิ้นก่อนกดสร้างภาพแชร์ครับ' }); return; }
+  toggleLoaderDisplay(true); const dateNow = new Date(); const thaiDateStr = dateNow.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+  safetySetTextContent('share-card-date', 'วันที่ตรวจประเมิน: ' + thaiDateStr);
+  html2canvas(cardElement, { scale: 2, useCORS: true, backgroundColor: "#ffffff" }).then(canvas => {
+    canvas.toBlob(blob => {
+      toggleLoaderDisplay(false); const imgFile = new File([blob], `SmartNCDCare_${dateNow.getTime()}.png`, { type: 'image/png' });
+      if (navigator.canShare && navigator.canShare({ files: [imgFile] })) {
+        navigator.share({ files: [imgFile], title: 'บัตรประเมินสุขภาพตนเองนิรนาม', text: 'สรุปผลตรวจวิเคราะห์สัญญาณชีพเบื้องต้นจากระบบข้อมูล Smart NCD Care' }).then(() => { Swal.fire({ icon: 'success', title: 'ส่งข้อมูลสำเร็จ', text: 'ดำเนินการแชร์ข้อมูลสุขภาพเรียบร้อยแล้ว', timer: 1500, showConfirmButton: false }); }).catch(err => { if (err.name !== 'AbortError') { executeFallbackDownloadMechanism(canvas, dateNow); } });
+      } else { executeFallbackDownloadMechanism(canvas, dateNow); }
+    }, 'image/png');
+  }).catch(err => { toggleLoaderDisplay(false); Swal.fire({ icon: 'error', title: 'ล้มเหลว', text: 'ล้มเหลวในการแปลงภาพ: ' + err.toString() }); });
+}
+
+function executeFallbackDownloadMechanism(canvas, dateNow) { const imgBase64Uri = canvas.toDataURL("image/png"); const downloadAnchor = document.createElement('a'); downloadAnchor.download = `บัตรแนะนำสุขภาพ_SmartNCDCare_${dateNow.getTime()}.png`; downloadAnchor.href = imgBase64Uri; downloadAnchor.click(); Swal.fire({ icon: 'success', title: 'ดาวน์โหลดภาพสำรองสำเร็จ', text: 'ระบบทำการเซฟภาพลงในเครื่องให้แทนโดยอัตโนมัติ', confirmButtonColor: '#0284c7' }); }
+function executeExportTargetMgToExcel() { if (filteredTargetMgList.length === 0) { Swal.fire({ icon: 'error', title: 'ไม่พบข้อมูล' }); return; } const worksheetData = [["ชื่อ - นามสกุลเป้าหมาย", "อายุ", "ที่อยู่ปัจจุบัน", "อสม. ผู้รับผิดชอบ", "สถานะถิ่นพำนักปัจจุบัน"]]; filteredTargetMgList.forEach(item => { worksheetData.push([item.name, item.age + " ปี", item.address, item.vhv_name, item.status_area]); }); XLSX.writeFile(XLSX.utils.book_append_sheet(XLSX.utils.book_new(), XLSX.utils.aoa_to_sheet(worksheetData), "เป้าหมาย"), "ทะเบียนกลุ่มเป้าหมายประชากร_Smart_NCD_Care.xlsx"); }
+
+function executePrintTargetMgPdf() { 
+  const tbody = document.getElementById('targetMgTableBody');
+  if (tbody && filteredTargetMgList.length > 0) {
+    let fullHtml = ''; filteredTargetMgList.forEach(item => { const statusLabel = item.status_area !== 'ไม่อยู่ในพื้นที่' ? 'อยู่ในพื้นที่' : 'ไม่อยู่ในพื้นที่'; fullHtml += `<tr><td>${item.name}</td><td>${item.age} ปี</td><td class="small text-muted">${item.address}</td><td>${item.vhv_name}</td><td class="text-center print-hide">${statusLabel}</td></tr>`; }); tbody.innerHTML = fullHtml;
+  }
+  setTimeout(() => { window.print(); renderTargetMgTable(); }, 500);
+}
+
+function convertCsvTextToJsonArray(textString) {
+  const lines = textString.split(/\r?\n/); if (lines.length === 0 || !lines[0].trim()) return [];
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, '')); const parsedArray = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim(); if (!line) continue;
+    const columns = line.split(',').map(c => c.trim().replace(/^["']|["']$/g, '')); const rowObj = {};
+    headers.forEach((header, index) => { rowObj[header] = columns[index] !== undefined ? columns[index] : ''; }); parsedArray.push(rowObj);
+  }
+  return parsedArray;
+}
+
+function getCsvValueRobust(rowObj, acceptableKeys) {
+  const rowKeys = Object.keys(rowObj);
+  for (let key of rowKeys) {
+    const cleanKey = key.trim().toLowerCase();
+    for (let target of acceptableKeys) { if (cleanKey === target.toLowerCase() || cleanKey.includes(target.toLowerCase())) { return rowObj[key]; } }
+  }
+  return undefined;
+}
+
+function parseDateRobust(rawDate) {
+  if (!rawDate || rawDate === '-' || rawDate.toString().trim() === '') return null;
+  let cleanDate = rawDate.toString().trim(); if (/^\d{4}-\d{2}-\d{2}$/.test(cleanDate)) return cleanDate;
+  const parts = cleanDate.split(/[\/\-]/);
+  if (parts.length === 3) {
+    if (parts[0].length === 4) { let year = parseInt(parts[0]); if (year > 2500) year -= 543; return `${year}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`; }
+    if (parts[2].length === 4 || parts[2].length === 2) { let year = parseInt(parts[2]); if (parts[2].length === 2) year += 2000; if (year > 2500) year -= 543; return `${year}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`; }
+  }
+  return null;
+}
+
+function parseNumberRobust(value, isFloat = false) {
+  if (value === undefined || value === null || value === '-' || value.toString().trim() === '') return null;
+  const parsed = isFloat ? parseFloat(value) : parseInt(value); return isNaN(parsed) ? null : parsed;
+}
+
+async function executeProcessingCsvUploadToServer() {
+  const fileInput = document.getElementById('inputCsvTargetFile');
+  if (!fileInput || fileInput.files.length === 0) { Swal.fire({ icon: 'warning', title: 'ยังไม่ได้เลือกไฟล์', text: 'กรุณาเลือกไฟล์เอกสารในรูปแบบนามสกุล .csv ก่อนกดยืนยันคำสั่งครับ' }); return; }
+  const radioEl = document.querySelector('input[name="csvTypeRadio"]:checked'); if (!radioEl) { Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่พบประเภทข้อมูลที่เลือก กรุณารีเฟรชหน้าเว็บ' }); return; }
+  
+  const selectedCsvType = radioEl.value; const csvFile = fileInput.files[0]; const fileReader = new FileReader(); toggleLoaderDisplay(true);
+  fileReader.onload = async function(event) {
+    try {
+      const textRawContent = event.target.result; const jsonBatchArray = convertCsvTextToJsonArray(textRawContent);
+      if (jsonBatchArray.length === 0) { throw new Error("ไฟล์ CSV ว่างเปล่า หรือโครงสร้างแถวหัวตารางไม่ถูกต้อง"); }
+
+      if (selectedCsvType === 'users') {
+        const typedData = jsonBatchArray
+          .map(u => {
+            const idVal = parseNumberRobust(getCsvValueRobust(u, ['id', 'ลำดับ']));
+            return {
+              id: idVal, username: getCsvValueRobust(u, ['username', 'ชื่อผู้ใช้', 'เบอร์โทร']), password: getCsvValueRobust(u, ['password', 'รหัสผ่าน']), full_name: getCsvValueRobust(u, ['full_name', 'ชื่อ-นามสกุล', 'ชื่อจริง']), role: getCsvValueRobust(u, ['role', 'สิทธิ์']) || 'user', moo: parseNumberRobust(getCsvValueRobust(u, ['moo', 'หมู่ที่'])) || 0, pid_vhv: getCsvValueRobust(u, ['pid_vhv', 'PID อสม.']) || '', 
+              community: getCsvValueRobust(u, ['community', 'ชุมชน']) || ''
+            };
+          })
+          .filter(u => u.id !== null);
+        if (typedData.length === 0) throw new Error("ไม่พบข้อมูลบัญชีผู้ใช้ที่ถูกต้องในไฟล์ CSV");
+        const uniqueUsersMap = new Map(); typedData.forEach(item => uniqueUsersMap.set(item.id, item)); const finalUniqueUsers = Array.from(uniqueUsersMap.values());
+        const { error: upsertErr } = await db.from('users').upsert(finalUniqueUsers); if (upsertErr) throw upsertErr;
+        Swal.fire({ icon: 'success', title: 'นำเข้าบัญชี อสม. สำเร็จ!', text: `อัปเดต/เพิ่มรายชื่อผู้ใช้งานตาราง users จำนวน ${finalUniqueUsers.length} รายการเรียบร้อย` });
+      } else {
+        const typedData = jsonBatchArray
+          .map(p => {
+            const pidVal = parseNumberRobust(getCsvValueRobust(p, ['pid', 'เลขทะเบียน'])); const rawScreenDate = getCsvValueRobust(p, ['screening_date', 'วันที่คัดกรอง']); const rawBirthDate = getCsvValueRobust(p, ['birth_date', 'วันเกิด', 'birthdate', 'birth date', 'วัน/เดือน/ปีเกิด', 'วัน เดือน ปีเกิด']);
+            return {
+              pid: pidVal, full_name: getCsvValueRobust(p, ['full_name', 'ชื่อ-นามสกุล']), gender: getCsvValueRobust(p, ['gender', 'เพศ']) || 'ชาย', birth_date: parseDateRobust(rawBirthDate), age: parseNumberRobust(getCsvValueRobust(p, ['age', 'อายุ'])) || 0, house_no: getCsvValueRobust(p, ['house_no', 'บ้านเลขที่']) || '', moo: parseNumberRobust(getCsvValueRobust(p, ['moo', 'หมู่ที่'])) || 0, village_name: getCsvValueRobust(p, ['village_name', 'ชื่อหมู่บ้าน']) || null, 
+              community: getCsvValueRobust(p, ['community', 'ชุมชน']) || null,       
+              vhv_name: getCsvValueRobust(p, ['vhv_name', 'อสม.ผู้ดูแล']) || '', vhv_pid: getCsvValueRobust(p, ['vhv_pid', 'PID อสม.']) || '', history_ht: getCsvValueRobust(p, ['history_ht', 'ประวัติ HT']) || null, history_dm: getCsvValueRobust(p, ['history_dm', 'ประวัติ DM']) || null, screening_date: parseDateRobust(rawScreenDate), weight: parseNumberRobust(getCsvValueRobust(p, ['weight', 'น้ำหนัก']), true), height: parseNumberRobust(getCsvValueRobust(p, ['height', 'ส่วนสูง']), true), waist: parseNumberRobust(getCsvValueRobust(p, ['waist', 'รอบเอว']), true), sbp: parseNumberRobust(getCsvValueRobust(p, ['sbp', 'SBP', 'ความดันตัวบน'])), dbp: parseNumberRobust(getCsvValueRobust(p, ['dbp', 'DBP', 'ความดันตัวล่าง'])), bsl: parseNumberRobust(getCsvValueRobust(p, ['bsl', 'BSL', 'น้ำตาล'])), interpretation_ht: getCsvValueRobust(p, ['interpretation_ht', 'ผลแปล HT']), interpretation_dm: getCsvValueRobust(p, ['interpretation_dm', 'ผลแปล DM']), area_status: getCsvValueRobust(p, ['area_status', 'สถานะพื้นที่']) || 'อยู่ในพื้นที่'
+            };
+          })
+          .filter(p => p.pid !== null);
+        if (typedData.length === 0) throw new Error("ไม่พบข้อมูลประชากรที่ถูกต้องในไฟล์ CSV");
+        const uniqueDataMap = new Map(); typedData.forEach(item => uniqueDataMap.set(item.pid, item)); const finalUniqueData = Array.from(uniqueDataMap.values());
+        
+        /* 🔥 แก้ไขบั๊ก Destructuring assignment และปิดเครื่องหมายปีกกาสำเร็จตรงนี้ */
+        const { error: upsertErr } = await db.from('data').upsert(finalUniqueData); if (upsertErr) throw upsertErr;
+        
+        Swal.fire({ icon: 'success', title: 'นำเข้าข้อมูลเป้าหมายสำเร็จ!', text: `ระบบอัปเดตข้อมูลรวมถึงวันเกิดสากลและสัญญาณชีพเข้าตาราง data จำนวน ${finalUniqueData.length} รายการเรียบร้อยครับ` });
+      }
+      fileInput.value = "";
+    } catch (err) { Swal.fire({ icon: 'error', title: 'การนำเข้าล้มเหลว', text: 'ตรวจพบข้อผิดพลาด: ' + err.message }); } finally { toggleLoaderDisplay(false); }
+  }; fileReader.readAsText(csvFile, "UTF-8");
+}
+   
+async function executeClearScreeningDatabaseAction() {
+  Swal.fire({
+    title: 'ยืนยันการรีเซ็ตล้างฐานข้อมูล?', text: "🚨 คำเตือนสำคัญ: คำสั่งนี้จะทำการล้างประวัติการคัดกรองสัญญาณชีพของปีนี้ทั้งหมดออกจากตาราง screening เพื่อเคลียร์ฐานข้อมูลให้ว่างเปล่าพร้อมรับปีงบประมาณใหม่ ข้อมูลเดิมจะสูญหายถาวร!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#64748b', confirmButtonText: 'ใช่, ฉันต้องการล้างประวัติคัดกรอง', cancelButtonText: 'ยกเลิก'
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      toggleLoaderDisplay(true);
+      try {
+        const { error: delErr } = await db.from('screening').delete().neq('id', 'all_clear_trigger'); if (delErr) throw delErr;
+        const { error: updateErr } = await db.from('data').update({ screening_date: null, weight: null, height: null, waist: null, sbp: null, dbp: null, bsl: null, interpretation_ht: null, interpretation_dm: null }).neq('pid', 0); if (updateErr) throw updateErr;
+        Swal.fire({ icon: 'success', title: 'ระบบล้างฐานข้อมูลเสร็จสิ้น', text: 'ล้างข้อมูลประวัติและเตรียมระบบรับการคัดกรองรอบใหม่เรียบร้อยแล้วครับ' });
+      } catch (err) { Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message }); } finally { toggleLoaderDisplay(false); }
+    }
+  });
+}
+
+async function executeClearTargetDatabaseAction() {
+  Swal.fire({
+    title: 'ยืนยันการล้างรายชื่อเป้าหมาย?', text: "🚨 คำเตือนขั้นเด็ดขาด: คำสั่งนี้จะล้างทำลายรายชื่อประชากรทั้งหมดออกจากตาราง data ทันที! อสม. จะไม่เห็นรายชื่อประชาชนใดๆ ในระบบจนกว่าแอดมินจะนำเข้าไฟล์ CSV ชุดใหม่เข้าไปทดแทน!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#64748b', confirmButtonText: 'ใช่, ฉันต้องการล้างรายชื่อประชากรทั้งหมด', cancelButtonText: 'ยกเลิก'
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      toggleLoaderDisplay(true);
+      try {
+        const { error: delErr } = await db.from('data').delete().neq('pid', 0); if (delErr) throw delErr;
+        Swal.fire({ icon: 'success', title: 'ล้างข้อมูลเป้าหมายสำเร็จ', text: 'รายชื่อประชากรในตาราง data ถูกเคลียร์ลบเป็นช่องว่างคลีน 100% แล้วครับ' });
+      } catch (err) { Swal.fire({ icon: 'error', title: 'ทำรายการไม่สำเร็จ', text: err.message }); } finally { toggleLoaderDisplay(false); }
+    }
+  });
+}
