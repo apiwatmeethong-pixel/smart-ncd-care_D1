@@ -411,21 +411,28 @@ function renderHealthRulesTable() {
 async function fetchVhvPerformanceReportFromServer() { 
   toggleLoaderDisplay(true); 
   try {
-    const { data: allVhvs, error: userErr } = await db.from('users').select('*').eq('role', 'user');
+    // 🛠️ แก้ไขจุดที่ 1: เอา .eq('role', 'user') ออก เพื่อให้ระบบดึงบัญชี staff/admin ที่มีผลงานคัดกรองมาคำนวณด้วย
+    const { data: allUsers, error: userErr } = await db.from('users').select('*');
     if (userErr) throw userErr;
     
     const dataRows = await supabaseSelectAll('data', 'pid, vhv_pid, vhv_name, moo, community');
     const screenRows = await supabaseSelectAll('screening', 'citizen_id');
     const screenedPids = screenRows ? screenRows.map(s => s.citizen_id.toString()) : [];
 
-    let filteredVhvs = allVhvs || [];
+    let filteredVhvs = allUsers || [];
     if (activeVhvSession.role === 'user') {
+      // สิทธิ์ user (อสม.) มองเห็นเฉพาะผลงานของตนเองเท่านั้น
       filteredVhvs = filteredVhvs.filter(u => u.pid_vhv === activeVhvSession.vhvId);
     } else if (activeVhvSession.role === 'staff') {
-      filteredVhvs = filteredVhvs.filter(u => u.moo === activeVhvSession.moo && 
-        (!activeVhvSession.community || u.community === activeVhvSession.community));
+      // 🛠️ แก้ไขจุดที่ 2: ปรับให้สิทธิ์ staff มองเห็น อสม. ทุกคนในหมู่/ชุมชนตนเอง "และเห็นบัญชีของตัวเอง" ด้วย
+      filteredVhvs = filteredVhvs.filter(u => 
+        u.pid_vhv === activeVhvSession.vhvId || 
+        (u.moo === activeVhvSession.moo && (!activeVhvSession.community || u.community === activeVhvSession.community))
+      );
     }
+    // สิทธิ์ admin จะผ่านฉลุย มองเห็นทั้งหมดทุกหมู่บ้าน/ชุมชนโดยไม่มีตัวกรองออก
 
+    // นำรายชื่อที่ผ่านการกรองสิทธิ์มาประมวลผลนับยอดเป้าหมายและผลงานจริง
     masterVhvPerformanceList = filteredVhvs.map(u => {
       const myCitizens = dataRows.filter(r => 
         (r.vhv_pid && r.vhv_pid.toString() === u.pid_vhv.toString()) || 
@@ -444,9 +451,15 @@ async function fetchVhvPerformanceReportFromServer() {
         target: target,
         done: done,
         pending: pending,
-        percentage: percentage
+        percentage: percentage,
+        role: u.role // เก็บสิทธิ์ไว้กรองขั้นสุดท้าย
       };
     });
+
+    // 🛠️ แก้ไขจุดที่ 3: กรองเปิดแสดงเฉพาะคนที่มีกลุ่มเป้าหมายในดูแลจริง หรือเป็นสิทธิ์ user/staff เพื่อไม่ให้รายชื่อแอดมินระบบที่ไม่มีเป้าหมายมาแสดงให้รกตาราง
+    masterVhvPerformanceList = masterVhvPerformanceList.filter(item => 
+      item.target > 0 || item.role === 'user' || item.name === activeVhvSession.name
+    );
 
     toggleLoaderDisplay(false); 
     const maxPage = Math.ceil(masterVhvPerformanceList.length / rowsPerPageLimit) || 1; 
