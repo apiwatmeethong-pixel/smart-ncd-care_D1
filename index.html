@@ -4,24 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
   <title>Smart NCD Care System</title>
-  <!-- External Libraries Libraries -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/822/822118.png">
   
-  <!-- เชื่อมโยงไฟล์ Style CSS -->
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- ตัวโหลดแอนิเมชันส่วนกลาง -->
   <div id="globalLoader" class="text-center position-fixed top-50 start-50 translate-middle p-4 rounded-3 shadow d-none" style="z-index: 9999; background: rgba(255, 255, 255, 0.95); min-width: 300px; border: 2px solid rgba(0,0,0,0.1);">
     <div class="spinner-border text-primary" role="status" style="width: 4rem; height: 4rem;"></div>
     <h3 class="mt-3 text-muted fw-bold">กำลังประมวลผลข้อมูล<br>โปรดรอสักครู่เดียว...</h3>
   </div>
 
-  <!-- ส่วนฟอร์มล็อกอินเข้าใช้งาน -->
   <div id="loginSection" class="d-flex align-items-center justify-content-center min-vh-100 container-glass-bg">
     <div class="card login-card p-4 text-center">
       <div class="mb-3">
@@ -51,7 +47,6 @@
     </div>
   </div>
 
-  <!-- ส่วนแสดงผลหลักหลังการเข้าสู่ระบบ -->
   <div id="mainInterface" class="d-none">
     <header class="navbar navbar-expand-lg header-glass fixed-top px-4 py-2 d-flex justify-content-between align-items-center">
       <div class="d-flex align-items-center gap-3">
@@ -74,7 +69,6 @@
 
     <div class="container-fluid wrapper-layout p-0">
       <div class="d-flex w-100">
-        <!-- เมนูสไลด์ด้านข้าง -->
         <nav id="sidebarMenu" class="sidebar-glass">
           <div class="position-sticky pt-2 px-1">
             <ul class="nav flex-column gap-2">
@@ -90,11 +84,9 @@
           </div>
         </nav>
 
-        <!-- พื้นที่แสดงแผงย่อยแต่ละหน้าต่างเมนู -->
         <main id="mainContentArea" class="main-frame px-3 px-md-4">
           <div id="windowViewManager">
             
-            <!-- 1. หน้าสรุปสถิติ แดชบอร์ด -->
             <div id="view-window-dash" class="sub-view-panel">
               <h2 class="fw-black text-dark mb-1 pt-2">หน้าสรุปความเสี่ยงโรคไม่ติดต่อเรื้อรัง (NCDs)</h2>
               <p class="text-muted fs-4 mb-4">ข้อมูลประมวลผลสะสมเฉพาะผู้รับบริการที่อยู่ในเขตพื้นที่ความรับผิดชอบ</p>
@@ -119,7 +111,6 @@
               </div>
             </div>
 
-            <!-- 2. หน้าตารางรายชื่อและการกรอกคัดกรอง -->
             <div id="view-window-list" class="sub-view-panel d-none">
               <h2 class="fw-black text-dark m-0 pt-2">ตารางรายชื่อประชาชนในการดูแล</h2>
               <div class="card p-3 mb-4 mt-2 border-0 shadow-sm bg-white rounded-3">
@@ -141,7 +132,6 @@
               <div class="card card-container-panel p-0 table-responsive"><table class="table table-hover align-middle mb-0 text-nowrap mobile-card-table"><thead class="table-dark fs-4"><tr><th>ทะเบียน PID</th><th>ชื่อ - นามสกุล</th><th>อายุ</th><th>ที่อยู่ปัจจุบัน</th><th>ผลตรวจปีนี้</th><th class="text-center">กดคัดกรอง</th></tr></thead><tbody id="populationTableBody" class="fs-4 fw-bold"></tbody></table><div class="p-3 d-flex justify-content-between align-items-center bg-light border-top flex-wrap gap-2"><span class="fs-4 text-muted fw-bold" id="labelTablePaginationInfo">-</span><nav><ul class="pagination pagination-lg mb-0" id="paginationWrapper"></ul></nav></div></div>
             </div>
 
-            <!-- หน้าต่างย่อย: แบบฟอร์มบันทึกสัญญาณชีพ -->
             <div id="view-window-form" class="sub-view-panel d-none">
               <div class="pt-2 pb-2 mb-3 border-bottom d-flex align-items-center gap-3"><button class="btn btn-secondary btn-lg fs-4 px-4 py-2 rounded-pill" onclick="changeViewWindow('list')"><i class="fa fa-arrow-left me-2"></i>ย้อนกลับ</button><h2 class="fw-black text-dark m-0">แบบฟอร์มบันทึกการคัดกรองเชิงรุกประจำตัว อสม.</h2></div>
               <div class="row g-3">
@@ -179,7 +169,7 @@
                 
                 <div class="col-xl-5">
                   <div class="card card-container-panel p-4" id="rt-evaluation-sticky-box">
-                    <h3 class="fw-black text-dark mb-3"><i class="fa-solid fa-square-poll-vertical text-primary me-2"></i>ผลคัดกรองสุขภาพ</h3>
+                    <h3 class="fw-black text-dark mb-3"><i class="fa-solid fa-heart-pulse text-primary me-2"></i>ผลคัดกรองสุขภาพ</h3>
                     <hr class="mt-0">
                     <div class="d-flex justify-content-between align-items-center mb-3 fs-4 fw-bold"><span>ดัชนีมวลกาย (BMI):</span><span id="rt-bmi" class="text-dark fs-3 bg-light px-2 rounded">-</span></div>
                     <div class="d-flex justify-content-between align-items-center mb-3 fs-4 fw-bold"><span>ความดันโลหิต (HT):</span><span id="rt-bp" class="badge fs-5 px-3 py-2 bg-secondary">รอกรอกตัวเลข</span></div>
@@ -213,13 +203,11 @@
               </div>
             </div>
 
-            <!-- 3. หน้าเกณฑ์ดัชนีสุขภาพและความรู้มาตรฐาน -->
             <div id="view-window-rules" class="sub-view-panel d-none">
               <h2 class="fw-black text-dark m-0 pt-2">3. เกณฑ์ดัชนีสุขภาพและความรู้การแปรผล</h2>
               <div class="card card-container-panel p-0 table-responsive mt-3"><table class="table table-bordered table-striped align-middle mb-0 mobile-card-table"><thead class="table-dark fs-5 text-white"><tr><th>ดัชนีชี้วัด</th><th>ช่วงระดับเกณฑ์</th><th>ผลการวิเคราะห์</th><th>คำพูดแนวทางบอกต่อประชาชน</th></tr></thead><tbody id="healthRulesTableBody" class="fs-5 text-dark fw-bold"></tbody></table></div>
             </div>
 
-            <!-- 4. หน้าจอสรุปผลงานความคืบหน้า อสม. (ปรับปรุงคอลัมน์หมู่ที่ / ชุมชน) -->
             <div id="view-window-perf" class="sub-view-panel d-none">
               <h2 class="fw-black text-dark m-0 pt-2">4. รายงานความคืบหน้าสรุปผลงานการคัดกรอง อสม.</h2>
               <div class="card card-container-panel p-0 table-responsive mt-3">
@@ -240,7 +228,6 @@
               </div>
             </div>
 
-            <!-- 5. หน้าแผงจัดการประชากรเป้าหมาย -->
             <div id="view-window-mgtgt" class="sub-view-panel d-none">
               <div class="d-flex justify-content-between align-items-center pt-2 mb-2 flex-wrap gap-2">
                 <div>
@@ -261,18 +248,44 @@
               <div class="card card-container-panel p-0 table-responsive" id="printableTargetMgArea"><table class="table table-hover align-middle mb-0 text-nowrap mobile-card-table" id="reportTargetMgTableMain"><thead class="table-dark fs-4"><tr><th>ชื่อ - นามสกุลเป้าหมาย</th><th>อายุ</th><th>ที่อยู่ปัจจุบัน</th><th>อสม. ผู้รับผิดชอบ</th><th class="text-center print-hide">สถานะถิ่นพำนักปัจจุบัน</th></tr></thead><tbody id="targetMgTableBody" class="fs-4 fw-bold text-dark"></tbody></table><div class="p-3 d-flex justify-content-between align-items-center bg-light border-top print-hide flex-wrap gap-2"><span class="fs-4 text-muted fw-bold" id="labelTgtMgPaginationInfo">-</span><nav><ul class="pagination pagination-lg mb-0" id="paginationTgtMgWrapper"></ul></nav></div></div>
             </div>
 
-            <!-- 6. หน้าจัดการสิทธิ์บัญชีผู้ใช้งานและระบบโลโก้ -->
             <div id="view-window-mgusr" class="sub-view-panel d-none">
               <h2 class="fw-black text-dark m-0 pt-2">6. แผงควบคุมสิทธิ์บัญชีรายชื่อ อสม. และระบบโลโก้</h2>
               <div class="card p-4 mb-4 mt-2 card-container-panel">
                 <h4 class="fw-bold text-dark mb-2">ตั้งค่าลิงก์โลโก้ประจำหน่วยงานสาธารณสุข</h4>
                 <div class="row g-2"><div class="col-md-9"><input type="url" id="inputAgencyLogoUrl" class="form-control form-control-lg fs-5" placeholder="วางลิงก์ URL รูปภาพโลโก้..."></div><div class="col-md-3"><button class="btn btn-info btn-lg fs-4 fw-bold w-100 text-white" onclick="executeSaveLogoConfig()">บันทึกโลโก้</button></div></div>
               </div>
+              
+              <div class="card p-3 mb-3 bg-white border-0 shadow-sm rounded-3 d-none" id="adminUserFilterCard">
+                <div class="row g-2">
+                  <div class="col-md-12">
+                    <label class="form-label fw-bold fs-4">🏡 ตัวกรองชุมชน (เฉพาะสิทธิ์ Admin)</label>
+                    <select id="selectUserFilterCommunity" class="form-select form-select-lg fs-4 rounded-pill" onchange="fetchUserAccountsFromServer()">
+                      <option value="">-- แสดงทั้งหมดทุกชุมชน --</option>
+                      <option value="ชุมชนบ้านป่าขาม">ชุมชนบ้านป่าขาม</option>
+                      <option value="ชุมชนลำปางคูณ">ชุมชนลำปางคูณ</option>
+                      <option value="ชุมชนเหล่าบุญเกิด">ชุมชนเหล่าบุญเกิด</option>
+                      <option value="ชุมชนสันติภาพ">ชุมชนสันติภาพ</option>
+                      <option value="ชุมชนธนวรรณ">ชุมชนธนวรรณ</option>
+                      <option value="ชุมชนโทกหัวช้าง">ชุมชนโทกหัวช้าง</option>
+                      <option value="ชุมชนผาลาด">ชุมชนผาลาด</option>
+                      <option value="ชุมชนอิ๋วเมี่ยน">ชุมชนอิ๋วเมี่ยน</option>
+                      <option value="ชุมชนหนองปล้อง">ชุมชนหนองปล้อง</option>
+                      <option value="ชุมชนศรีพูนทรัพย์">ชุมชนศรีพูนทรัพย์</option>
+                      <option value="ชุมชนกอกชุม">ชุมชนกอกชุม</option>
+                      <option value="ชุมชนจิตต์อารีย์">ชุมชนจิตต์อารีย์</option>
+                      <option value="ชุมชนหนองห้า">ชุมชนหนองห้า</option>
+                      <option value="ชุมชนหนองวัวเฒ่า">ชุมชนหนองวัวเฒ่า</option>
+                      <option value="ชุมชนป่าแลว 2">ชุมชนป่าแลว 2</option>
+                      <option value="ชุมชนหัวทุ่งสามัคคี">ชุมชนหัวทุ่งสามัคคี</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
               <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2"><h4 class="fw-bold m-0">รายชื่อผู้ใช้งานระบบคัดกรองทั้งหมด</h4><button class="btn btn-success btn-lg fs-4 fw-bold rounded-pill px-4" onclick="openAddUserModal()">เพิ่มบัญชี อสม. ใหม่</button></div>
               <div class="card card-container-panel p-0 table-responsive"><table class="table table-hover align-middle mb-0 text-nowrap mobile-card-table"><thead class="table-dark fs-4"><tr><th>รหัสผู้ใช้</th><th>ชื่อผู้ใช้</th><th>รหัสผ่าน</th><th>สิทธิ์ระบบ</th><th>ชื่อ - นามสกุล</th><th>หมู่ที่ / ชุมชน</th><th class="text-center">จัดการคำสั่ง</th></tr></thead><tbody id="usersTableBody" class="fs-4 fw-bold text-dark"></tbody></table></div>
             </div>
 
-            <!-- 7. หน้าคลังทะเบียนรายงานรายละเอียดสุขภาพทั้งหมด -->
             <div id="view-window-report" class="sub-view-panel d-none">
               <div class="d-flex justify-content-between align-items-center pt-2 mb-3 flex-wrap gap-2">
                 <div>
@@ -293,7 +306,6 @@
               </div>
             </div>
 
-            <!-- 8. หน้าเมนูศูนย์บริการจัดการล้างและอัปโหลด CSV ระบบแอดมิน -->
             <div id="view-window-upload" class="sub-view-panel d-none">
               <h2 class="fw-black text-dark pt-2 m-0">8. ศูนย์บริการจัดการระบบและฐานข้อมูลสำหรับ Admin สูงสุด</h2>
               <p class="text-muted fs-4 mb-4">บริการจัดการล้างระบบ เขียนทับข้อมูลเป้าหมายประจำปีงบประมาณ และการอัปเดตรายชื่อบัญชีผู้เข้าใช้งาน อสม.</p>
@@ -359,7 +371,6 @@
     </div>
   </div>
 
-  <!-- โครงสร้างป็อปอัปสิทธิ์จัดการบัญชี อสม. -->
   <div class="modal fade" id="userManagementModal" data-bs-backdrop="static" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
       <div class="modal-content card-container-panel p-3">
@@ -375,7 +386,6 @@
               <div class="col-md-6"><label class="form-label fw-bold fs-5">หมู่ที่</label><input type="number" id="modal_moo" class="form-control form-control-lg fs-4 fw-bold" required></div>
               <div class="col-md-6"><label class="form-label fw-bold fs-5">เลขประจำตัว PID อสม.</label><input type="text" id="modal_pid_อสม" class="form-control form-control-lg fs-4 fw-bold" required></div>
               
-              <!-- ช่องเลือกชุมชนย่อย -->
               <div class="col-md-6">
                 <label class="form-label fw-bold fs-5">เลือกชุมชนผู้รับผิดชอบ</label>
                 <select id="modal_community" class="form-select form-select-lg fs-4 fw-bold">
@@ -406,14 +416,12 @@
     </div>
   </div>
 
-  <!-- บรรจุไลบรารีสคริปต์ภายนอก -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-  <!-- เชื่อมโยงไฟล์ตรรกะระบบควบคุมภายนอก Script JS -->
   <script src="script.js"></script>
 </body>
 </html>
