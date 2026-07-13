@@ -82,18 +82,7 @@ function changeViewWindow(targetView) {
   else if (targetView === 'rules') { renderHealthRulesTable(); }
   else if (targetView === 'perf') { fetchVhvPerformanceReportFromServer(); }
   else if (targetView === 'mgtgt') { fetchManagementTargetsFromServer(); }
-  else if (targetView === 'mgusr') { 
-    /* 🛠️ ปรับปรุง: ตรวจสอบและแสดง/ซ่อนกล่องตัวกรองชุมชนสำหรับสิทธิ์แอดมิน */
-    const filterCard = document.getElementById('adminUserFilterCard');
-    if (filterCard) {
-      if (activeVhvSession.role === 'admin') {
-        filterCard.classList.remove('d-none');
-      } else {
-        filterCard.classList.add('d-none');
-      }
-    }
-    fetchUserAccountsFromServer(); 
-  }
+  else if (targetView === 'mgusr') { fetchUserAccountsFromServer(); } // ย้ายตรรกะควบคุมการเปิดปิดไปอยู่ในฟังก์ชันย่อยโดยตรง
   else if (targetView === 'report') { fetchScreeningReportDataFromServer(); }
 }
 
@@ -187,7 +176,7 @@ async function fetchDashboardCountsFromServer() {
       if (tbody) {
         let bClass = "bg-secondary"; if (item.ncd_status.includes('เขียว') || item.ncd_status.includes('ปกติ')) bClass = "bg-success"; else if (item.ncd_status.includes('เหลือง') || item.ncd_status.includes('เสี่ยง')) bClass = "bg-warning text-dark"; else if (item.ncd_status.includes('แดง') || item.ncd_status.includes('สงสัย')) bClass = "bg-danger";
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td data-label="ชื่อ - นามสกุล">${item.name}</td><td data-label="สรุปสถานะกลุ่ม"><span class="badge ${bClass} fs-6">${item.ncd_status}</span></td><td data-label="แปลดัชนีมวลกาย" class="text-primary">${item.bmi || '-'}</td><td data-label="แปลความดัน (HT)">${item.bp_status}</td><td data-label="แปลน้ำตาล (DM)">${item.fbs_status}</td><td data-label="ประเมิตหัวใจ (CVD)">${item.cvd_risk}</td>`; tbody.appendChild(tr);
+        tr.innerHTML = `<td data-label="ชื่อ - นามสกุล">${item.name}</td><td data-label="สรุปสถานะกลุ่ม"><span class="badge ${bClass} fs-6">${item.ncd_status}</span></td><td data-label="แปลดัชนีมวลกาย" class="text-primary">${item.bmi || '-'}</td><td data-label="แปลความดัน (HT)">${item.bp_status}</td><td data-label="แปลน้ำตาล (DM)">${item.fbs_status}</td><td data-label="ประเมินหัวใจ (CVD)">${item.cvd_risk}</td>`; tbody.appendChild(tr);
       }
     });
     if (tbody && filteredScreenings.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">ยังไม่มีข้อมูลผลการคัดกรองเสร็จสิ้น</td></tr>'; }
@@ -552,20 +541,32 @@ async function toggleTargetLocationState(pid, el) {
 
 function executeSaveLogoConfig() { const url = document.getElementById('inputAgencyLogoUrl').value.trim(); localStorage.setItem('agencyLogoUrl', url); const img = document.getElementById('menuHeaderLogo'); if (img) img.src = url; Swal.fire({ icon: 'success', title: 'อัปเดตโลโก้สำเร็จ' }); }
 
+/* 🌟 [ปรับปรุงความสมบูรณ์แบบ] ฟังก์ชันดึงและกรองสิทธิ์บัญชีรายชื่อ อสม. หน้าเมนู 6 */
 async function fetchUserAccountsFromServer() {
+  
+  // 🛠️ ตรวจสอบสิทธิ์แบบเรียลไทม์เพื่อสั่งแสดงผลหรือซ่อนกล่องตัวกรองชุมชนของ Admin ให้มีความเสถียรสูงสุด
+  const filterCard = document.getElementById('adminUserFilterCard');
+  if (filterCard) {
+    if (activeVhvSession.role && activeVhvSession.role.toString().trim().toLowerCase() === 'admin') {
+      filterCard.classList.remove('d-none');
+    } else {
+      filterCard.classList.add('d-none');
+    }
+  }
+
   toggleLoaderDisplay(true);
   try {
     const { data: users } = await db.from('users').select('*').order('id', { ascending: true });
     toggleLoaderDisplay(false); const tbody = document.getElementById('usersTableBody'); if (!tbody) return; tbody.innerHTML = '';
     if (users) {
       let displayedUsers = users || [];
+      const currentRole = activeVhvSession.role ? activeVhvSession.role.toString().trim().toLowerCase() : '';
       
-      /* 🛠️ ปรับปรุงระบบสโคปสิทธิ์การเรียกดูบัญชีรายชื่อ อสม. ตามที่คุณอภิวัฒน์ระบุ */
-      if (activeVhvSession.role === 'staff') {
-        // 1. สิทธิ์ staff: ให้มองเห็นเฉพาะ อสม. / ผู้ใช้งานที่อยู่ชุมชนเดียวกับตนเองเท่านั้น
+      if (currentRole === 'staff') {
+        // 1. สิทธิ์ staff: บังคับคัดกรอง ล็อกแสดงเฉพาะรายชื่อ อสม. ที่อยู่ชุมชนเดียวกัน
         displayedUsers = displayedUsers.filter(u => u.community === activeVhvSession.community);
-      } else if (activeVhvSession.role === 'admin') {
-        // 2. สิทธิ์ admin: มองเห็นทั้งหมด และประมวลผลควบคู่ตามตัวเลือก Dropdown บนหน้าเว็บ
+      } else if (currentRole === 'admin') {
+        // 2. สิทธิ์ admin: แสดงทั้งหมด และกรองตามที่เลือกเลือก Dropdown คัดกรองบนหน้าเว็บ
         const commFilter = document.getElementById('selectUserFilterCommunity') ? document.getElementById('selectUserFilterCommunity').value : '';
         if (commFilter !== '') {
           displayedUsers = displayedUsers.filter(u => u.community === commFilter);
@@ -575,7 +576,7 @@ async function fetchUserAccountsFromServer() {
       displayedUsers.forEach(u => {
         let editBtn = `<button class="btn btn-sm btn-warning fw-bold fs-6 rounded-pill px-3 me-2" onclick="openEditUserModal(${JSON.stringify(u).replace(/"/g, '&quot;')})"><i class="fa-solid fa-user-pen"></i> แก้ไข</button>`;
         let deleteBtn = `<button class="btn btn-sm btn-danger fw-bold fs-6 rounded-pill px-3" onclick="executeUserCrudAction('DELETE', ${u.id})"><i class="fa fa-trash"></i> ลบ</button>`;
-        if(activeVhvSession.role === 'staff') { deleteBtn = `<span class="badge bg-light text-muted fs-6">ล็อกสิทธิ์การลบ</span>`; if (u.role === 'admin') { editBtn = `<span class="badge bg-light text-muted fs-6 me-2">ล็อกสิทธิ์จัดการ Admin</span>`; } }
+        if(currentRole === 'staff') { deleteBtn = `<span class="badge bg-light text-muted fs-6">ล็อกสิทธิ์การลบ</span>`; if (u.role === 'admin') { editBtn = `<span class="badge bg-light text-muted fs-6 me-2">ล็อกสิทธิ์จัดการ Admin</span>`; } }
         
         let communityLabel = u.community && u.community.trim() !== "" ? `<br><span class="text-muted small"><i class="fa-solid fa-tree-city"></i> ${u.community}</span>` : '';
         
