@@ -23,6 +23,23 @@ let bootstrapUserModalInstance;
 let tableSearchDebounceTimeout;
 let targetMgSearchDebounceTimeout;
 
+/* 🛡️ [PDPA Standard] ฟังก์ชันส่วนกลางสำหรับบันทึกประวัติการเข้าถึงและการปรับปรุงแก้ไขข้อมูล */
+async function insertAuditLog(action, tableName, recordId, details = '') {
+  try {
+    const logPayload = {
+      operator_name: activeVhvSession.name || 'System/Unauthenticated',
+      operator_role: activeVhvSession.role || 'Unknown',
+      action: action,
+      table_name: tableName,
+      record_id: recordId ? recordId.toString() : '-',
+      details: typeof details === 'object' ? JSON.stringify(details) : details
+    };
+    await db.from('logs').insert([logPayload]);
+  } catch (err) {
+    console.error('⚠️ ไม่สามารถบันทึก Audit Log เข้าสู่ระบบได้:', err);
+  }
+}
+
 async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null) {
   let allRecords = []; let startRange = 0; const batchSize = 1000; let keepGoing = true;
   while (keepGoing) {
@@ -82,7 +99,7 @@ function changeViewWindow(targetView) {
   else if (targetView === 'rules') { renderHealthRulesTable(); }
   else if (targetView === 'perf') { fetchVhvPerformanceReportFromServer(); }
   else if (targetView === 'mgtgt') { fetchManagementTargetsFromServer(); }
-  else if (targetView === 'mgusr') { fetchUserAccountsFromServer(); } // ย้ายตรรกะควบคุมการเปิดปิดไปอยู่ในฟังก์ชันย่อยโดยตรง
+  else if (targetView === 'mgusr') { fetchUserAccountsFromServer(); } 
   else if (targetView === 'report') { fetchScreeningReportDataFromServer(); }
 }
 
@@ -118,13 +135,23 @@ async function executeLogin(e) {
     if (user.role === 'admin') { document.querySelectorAll('.admin-staff-only').forEach(el => el.classList.remove('d-none')); document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('d-none')); } 
     else if (user.role === 'staff') { document.querySelectorAll('.admin-staff-only').forEach(el => el.classList.remove('d-none')); document.querySelectorAll('.admin-only').forEach(el => el.classList.add('d-none')); } 
     else { document.querySelectorAll('.admin-staff-only').forEach(el => el.classList.add('d-none')); document.querySelectorAll('.admin-only').forEach(el => el.classList.add('d-none')); }
+    
+    /* 🛡️ บันทึก Log การเข้าสู่ระบบเข้าตามมาตราฐานความปลอดภัย */
+    await insertAuditLog('USER_LOGIN', 'users', user.id, `ผู้ใช้งานเข้าสู่ระบบสิทธิ์ ${user.role}`);
+
     toggleLoaderDisplay(false); document.getElementById('loginSection').classList.add('d-none'); document.getElementById('mainInterface').classList.remove('d-none');
     Swal.fire({ icon: 'success', title: 'ยินดีต้อนรับเข้าใช้งาน', text: `เจ้าหน้าที่ระบบ: ${user.full_name}`, timer: 1500, showConfirmButton: false });
     changeViewWindow('dash');
   } catch (err) { toggleLoaderDisplay(false); Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message }); }
 }
 
-function executeLogout() { activeVhvSession = { name: '', role: '', vhvId: '', logo: '', moo: 0, community: '' }; document.getElementById('loginForm').reset(); document.getElementById('mainInterface').classList.add('d-none'); document.getElementById('loginSection').classList.remove('d-none'); }
+async function executeLogout() { 
+  await insertAuditLog('USER_LOGOUT', 'users', '-', `ลงชื่อออกจากระบบงานคัดกรอง`);
+  activeVhvSession = { name: '', role: '', vhvId: '', logo: '', moo: 0, community: '' }; 
+  document.getElementById('loginForm').reset(); 
+  document.getElementById('mainInterface').classList.add('d-none'); 
+  document.getElementById('loginSection').classList.remove('d-none'); 
+}
 
 function compileSmartPaginationLinks(currentPage, totalItems, elementWrapperId, clickFunctionName) {
   const totalPages = Math.ceil(totalItems / rowsPerPageLimit) || 1; const wrapper = document.getElementById(elementWrapperId); if (!wrapper) return; wrapper.innerHTML = ''; if (totalPages <= 1) return;
@@ -366,6 +393,10 @@ async function submitFormScreeningData(e) {
   try {
     const { error: screenErr } = await db.from('screening').upsert([payload]); if (screenErr) throw screenErr;
     await db.from('data').update({ screening_date: new Date().toISOString().split('T')[0], weight: parseFloat(wRaw), height: parseFloat(hRaw), waist: parseFloat(waistRaw), sbp: sbp, dbp: dbp, bsl: bsl, interpretation_ht: document.getElementById('rt-bp').innerText, interpretation_dm: document.getElementById('rt-bsl').innerText }).eq('pid', citizenIdVal);
+    
+    /* 🛡️ [PDPA Audit Log] บันทึกเมื่อบันทึกผลการคัดกรองสัญญาณชีพสำเร็จ */
+    await insertAuditLog('UPSERT_SCREENING', 'screening', citizenIdVal, { name: payload.name, ncd_status: payload.ncd_status });
+
     toggleLoaderDisplay(false); Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false }); changeViewWindow('list'); 
   } catch (err) { toggleLoaderDisplay(false); Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message }); }
 }
@@ -536,15 +567,26 @@ function renderTargetMgTable() {
 
 async function toggleTargetLocationState(pid, el) { 
   const statusStr = el.checked ? 'อยู่ในพื้นที่' : 'ไม่อยู่ในพื้นที่'; const { error } = await db.from('data').update({ area_status: statusStr }).eq('pid', pid);
-  if(!error) { const idx = masterTargetMgList.findIndex(t => t.pid.toString() === pid.toString()); if(idx !== -1) masterTargetMgList[idx].status_area = statusStr; executeTargetMgTableFilter(false); } 
+  if(!error) { 
+    const idx = masterTargetMgList.findIndex(t => t.pid.toString() === pid.toString()); 
+    if(idx !== -1) masterTargetMgList[idx].status_area = statusStr; 
+    
+    /* 🛡️ [PDPA Audit Log] บันทึกความเคลื่อนไหวการย้ายถิ่นฐานประชากร */
+    await insertAuditLog('UPDATE_LOCATION_STATE', 'data', pid, `เปลี่ยนสถานะถิ่นพำนักเป็น: ${statusStr}`);
+    
+    executeTargetMgTableFilter(false); 
+  } 
 }
 
-function executeSaveLogoConfig() { const url = document.getElementById('inputAgencyLogoUrl').value.trim(); localStorage.setItem('agencyLogoUrl', url); const img = document.getElementById('menuHeaderLogo'); if (img) img.src = url; Swal.fire({ icon: 'success', title: 'อัปเดตโลโก้สำเร็จ' }); }
+function executeSaveLogoConfig() { 
+  const url = document.getElementById('inputAgencyLogoUrl').value.trim(); 
+  localStorage.setItem('agencyLogoUrl', url); 
+  const img = document.getElementById('menuHeaderLogo'); 
+  if (img) img.src = url; 
+  Swal.fire({ icon: 'success', title: 'อัปเดตโลโก้สำเร็จ' }); 
+}
 
-/* 🌟 [ปรับปรุงความสมบูรณ์แบบ] ฟังก์ชันดึงและกรองสิทธิ์บัญชีรายชื่อ อสม. หน้าเมนู 6 */
 async function fetchUserAccountsFromServer() {
-  
-  // 🛠️ ตรวจสอบสิทธิ์แบบเรียลไทม์เพื่อสั่งแสดงผลหรือซ่อนกล่องตัวกรองชุมชนของ Admin ให้มีความเสถียรสูงสุด
   const filterCard = document.getElementById('adminUserFilterCard');
   if (filterCard) {
     if (activeVhvSession.role && activeVhvSession.role.toString().trim().toLowerCase() === 'admin') {
@@ -563,10 +605,8 @@ async function fetchUserAccountsFromServer() {
       const currentRole = activeVhvSession.role ? activeVhvSession.role.toString().trim().toLowerCase() : '';
       
       if (currentRole === 'staff') {
-        // 1. สิทธิ์ staff: บังคับคัดกรอง ล็อกแสดงเฉพาะรายชื่อ อสม. ที่อยู่ชุมชนเดียวกัน
         displayedUsers = displayedUsers.filter(u => u.community === activeVhvSession.community);
       } else if (currentRole === 'admin') {
-        // 2. สิทธิ์ admin: แสดงทั้งหมด และกรองตามที่เลือกเลือก Dropdown คัดกรองบนหน้าเว็บ
         const commFilter = document.getElementById('selectUserFilterCommunity') ? document.getElementById('selectUserFilterCommunity').value : '';
         if (commFilter !== '') {
           displayedUsers = displayedUsers.filter(u => u.community === commFilter);
@@ -614,8 +654,17 @@ async function executeSaveUserForm(e) {
     if(uid === "") {
       const { data: allUsers } = await db.from('users').select('id');
       const maxId = allUsers ? allUsers.reduce((max, u) => u.id > max ? u.id : max, 0) : 0;
-      payload.id = maxId + 1; await db.from('users').insert([payload]);
-    } else { await db.from('users').update(payload).eq('id', uid); }
+      payload.id = maxId + 1; 
+      await db.from('users').insert([payload]);
+      
+      /* 🛡️ [PDPA Audit Log] บันทึกการเพิ่มผู้ใช้งานใหม่ */
+      await insertAuditLog('INSERT_USER', 'users', payload.id, { username: payload.username, full_name: payload.full_name, role: payload.role });
+    } else { 
+      await db.from('users').update(payload).eq('id', uid); 
+      
+      /* 🛡️ [PDPA Audit Log] บันทึกการแก้ไขข้อมูลผู้ใช้งาน */
+      await insertAuditLog('UPDATE_USER', 'users', uid, { username: payload.username, full_name: payload.full_name, role: payload.role });
+    }
     toggleLoaderDisplay(false); if (bootstrapUserModalInstance) bootstrapUserModalInstance.hide(); fetchUserAccountsFromServer();
     Swal.fire({ icon: 'success', title: 'ดำเนินการสำเร็จ', timer: 1200, showConfirmButton:false });
   } catch (err) { toggleLoaderDisplay(false); Swal.fire({ icon: 'error', title: 'ไม่สามารถทำรายการได้', text: err.message }); }
@@ -624,7 +673,15 @@ async function executeSaveUserForm(e) {
 async function executeUserCrudAction(action, userId) {
   if(action === 'DELETE') {
     Swal.fire({ title: 'ยืนยันการลบระเบียบบัญชีนี้?', text: "เมื่อยืนยันแล้ว บัญชี อสม. ดังกล่าวจะไม่สามารถเข้าสู่ระบบได้อีกต่อไป!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'ลบข้อมูล' }).then(async (result) => {
-      if (result.isConfirmed) { toggleLoaderDisplay(true); await db.from('users').delete().eq('id', userId); toggleLoaderDisplay(false); fetchUserAccountsFromServer(); Swal.fire('ถูกลบแล้ว!', '', 'success'); }
+      if (result.isConfirmed) { 
+        toggleLoaderDisplay(true); 
+        await db.from('users').delete().eq('id', userId); 
+        
+        /* 🛡️ [PDPA Audit Log] บันทึกการลบผู้ใช้งาน */
+        await insertAuditLog('DELETE_USER', 'users', userId, `ลบบัญชีผู้ใช้ไอดี: ${userId} ออกจากฐานข้อมูลระบบ`);
+
+        toggleLoaderDisplay(false); fetchUserAccountsFromServer(); Swal.fire('ถูกลบแล้ว!', '', 'success'); 
+      }
     });
   }
 }
@@ -781,6 +838,10 @@ async function executeProcessingCsvUploadToServer() {
         if (typedData.length === 0) throw new Error("ไม่พบข้อมูลบัญชีผู้ใช้ที่ถูกต้องในไฟล์ CSV");
         const uniqueUsersMap = new Map(); typedData.forEach(item => uniqueUsersMap.set(item.id, item)); const finalUniqueUsers = Array.from(uniqueUsersMap.values());
         const { error: upsertErr } = await db.from('users').upsert(finalUniqueUsers); if (upsertErr) throw upsertErr;
+        
+        /* 🛡️ [PDPA Audit Log] บันทึกการนำเข้าชุดบัญชีผู้ใช้ปริมาณมาก */
+        await insertAuditLog('IMPORT_CSV_USERS', 'users', 'BATCH', `นำเข้าข้อมูลบัญชีรายชื่อ อสม. จำนวน ${finalUniqueUsers.length} รายการผ่าน CSV`);
+
         Swal.fire({ icon: 'success', title: 'นำเข้าบัญชี อสม. สำเร็จ!', text: `อัปเดต/เพิ่มรายชื่อผู้ใช้งานตาราง users จำนวน ${finalUniqueUsers.length} รายการเรียบร้อย` });
       } else {
         const typedData = jsonBatchArray
@@ -798,6 +859,9 @@ async function executeProcessingCsvUploadToServer() {
         
         const { error: upsertErr } = await db.from('data').upsert(finalUniqueData); if (upsertErr) throw upsertErr;
         
+        /* 🛡️ [PDPA Audit Log] บันทึกการนำเข้าชุดประชากรเป้าหมายผ่าน CSV */
+        await insertAuditLog('IMPORT_CSV_TARGETS', 'data', 'BATCH', `นำเข้าข้อมูลประชากรกลุ่มเป้าหมายจำนวน ${finalUniqueData.length} รายการผ่าน CSV`);
+
         Swal.fire({ icon: 'success', title: 'นำเข้าข้อมูลเป้าหมายสำเร็จ!', text: `ระบบอัปเดตข้อมูลรวมถึงวันเกิดสากลและสัญญาณชีพเข้าตาราง data จำนวน ${finalUniqueData.length} รายการเรียบร้อยครับ` });
       }
       fileInput.value = "";
@@ -814,6 +878,10 @@ async function executeClearScreeningDatabaseAction() {
       try {
         const { error: delErr } = await db.from('screening').delete().neq('id', 'all_clear_trigger'); if (delErr) throw delErr;
         const { error: updateErr } = await db.from('data').update({ screening_date: null, weight: null, height: null, waist: null, sbp: null, dbp: null, bsl: null, interpretation_ht: null, interpretation_dm: null }).neq('pid', 0); if (updateErr) throw updateErr;
+        
+        /* 🛡️ [PDPA Audit Log] บันทึกเมื่อมีการสั่งล้างประวัติคัดกรองยกชุด */
+        await insertAuditLog('CLEAR_ALL_SCREENINGS', 'screening', 'ALL_RECORDS', 'สั่งล้างข้อมูลสัญญาณชีพและประวัติผลการคัดกรองประจำปีเพื่อเริ่มต้นปีงบประมาณใหม่');
+
         Swal.fire({ icon: 'success', title: 'ระบบล้างฐานข้อมูลเสร็จสิ้น', text: 'ล้างข้อมูลประวัติและเตรียมระบบรับการคัดกรองรอบใหม่เรียบร้อยแล้วครับ' });
       } catch (err) { Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message }); } finally { toggleLoaderDisplay(false); }
     }
@@ -828,6 +896,10 @@ async function executeClearTargetDatabaseAction() {
       toggleLoaderDisplay(true);
       try {
         const { error: delErr } = await db.from('data').delete().neq('pid', 0); if (delErr) throw delErr;
+        
+        /* 🛡️ [PDPA Audit Log] บันทึกการสั่งทำลายล้างข้อมูลทะเบียนรายชื่อฐานราก */
+        await insertAuditLog('CLEAR_ALL_TARGETS', 'data', 'ALL_RECORDS', 'สั่งล้างรายชื่อประชากรเป้าหมายทั้งหมดออกจากตารางข้อมูลหลัก data');
+
         Swal.fire({ icon: 'success', title: 'ล้างข้อมูลเป้าหมายสำเร็จ', text: 'รายชื่อประชากรในตาราง data ถูกเคลียร์ลบเป็นช่องว่างคลีน 100% แล้วครับ' });
       } catch (err) { Swal.fire({ icon: 'error', title: 'ทำรายการไม่สำเร็จ', text: err.message }); } finally { toggleLoaderDisplay(false); }
     }
