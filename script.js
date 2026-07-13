@@ -82,7 +82,18 @@ function changeViewWindow(targetView) {
   else if (targetView === 'rules') { renderHealthRulesTable(); }
   else if (targetView === 'perf') { fetchVhvPerformanceReportFromServer(); }
   else if (targetView === 'mgtgt') { fetchManagementTargetsFromServer(); }
-  else if (targetView === 'mgusr') { fetchUserAccountsFromServer(); }
+  else if (targetView === 'mgusr') { 
+    /* 🛠️ ปรับปรุง: ตรวจสอบและแสดง/ซ่อนกล่องตัวกรองชุมชนสำหรับสิทธิ์แอดมิน */
+    const filterCard = document.getElementById('adminUserFilterCard');
+    if (filterCard) {
+      if (activeVhvSession.role === 'admin') {
+        filterCard.classList.remove('d-none');
+      } else {
+        filterCard.classList.add('d-none');
+      }
+    }
+    fetchUserAccountsFromServer(); 
+  }
   else if (targetView === 'report') { fetchScreeningReportDataFromServer(); }
 }
 
@@ -176,7 +187,7 @@ async function fetchDashboardCountsFromServer() {
       if (tbody) {
         let bClass = "bg-secondary"; if (item.ncd_status.includes('เขียว') || item.ncd_status.includes('ปกติ')) bClass = "bg-success"; else if (item.ncd_status.includes('เหลือง') || item.ncd_status.includes('เสี่ยง')) bClass = "bg-warning text-dark"; else if (item.ncd_status.includes('แดง') || item.ncd_status.includes('สงสัย')) bClass = "bg-danger";
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td data-label="ชื่อ - นามสกุล">${item.name}</td><td data-label="สรุปสถานะกลุ่ม"><span class="badge ${bClass} fs-6">${item.ncd_status}</span></td><td data-label="แปลดัชนีมวลกาย" class="text-primary">${item.bmi || '-'}</td><td data-label="แปลความดัน (HT)">${item.bp_status}</td><td data-label="แปลน้ำตาล (DM)">${item.fbs_status}</td><td data-label="ประเมินหัวใจ (CVD)">${item.cvd_risk}</td>`; tbody.appendChild(tr);
+        tr.innerHTML = `<td data-label="ชื่อ - นามสกุล">${item.name}</td><td data-label="สรุปสถานะกลุ่ม"><span class="badge ${bClass} fs-6">${item.ncd_status}</span></td><td data-label="แปลดัชนีมวลกาย" class="text-primary">${item.bmi || '-'}</td><td data-label="แปลความดัน (HT)">${item.bp_status}</td><td data-label="แปลน้ำตาล (DM)">${item.fbs_status}</td><td data-label="ประเมิตหัวใจ (CVD)">${item.cvd_risk}</td>`; tbody.appendChild(tr);
       }
     });
     if (tbody && filteredScreenings.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">ยังไม่มีข้อมูลผลการคัดกรองเสร็จสิ้น</td></tr>'; }
@@ -205,7 +216,6 @@ async function fetchPopulationListFromServer() {
       const s = (screenRows || []).find(sc => sc.citizen_id.toString() === r.pid.toString());
       let statusStr = "ยังไม่ได้คัดกรองปีนี้"; if (s) { statusStr = s.ncd_status; }
       
-      /* 🛠️ [แก้ไขสำเร็จ] ป้องกันคำว่า "ชุมชน" ซ้ำซ้อนจากการต่อ String ในหน้ารายชื่อคัดกรอง */
       let cleanComm = r.community ? r.community.trim() : "";
       let communityStr = "";
       if (cleanComm !== "") {
@@ -411,7 +421,6 @@ function renderHealthRulesTable() {
 async function fetchVhvPerformanceReportFromServer() { 
   toggleLoaderDisplay(true); 
   try {
-    // 🛠️ แก้ไขจุดที่ 1: เอา .eq('role', 'user') ออก เพื่อให้ระบบดึงบัญชี staff/admin ที่มีผลงานคัดกรองมาคำนวณด้วย
     const { data: allUsers, error: userErr } = await db.from('users').select('*');
     if (userErr) throw userErr;
     
@@ -421,18 +430,14 @@ async function fetchVhvPerformanceReportFromServer() {
 
     let filteredVhvs = allUsers || [];
     if (activeVhvSession.role === 'user') {
-      // สิทธิ์ user (อสม.) มองเห็นเฉพาะผลงานของตนเองเท่านั้น
       filteredVhvs = filteredVhvs.filter(u => u.pid_vhv === activeVhvSession.vhvId);
     } else if (activeVhvSession.role === 'staff') {
-      // 🛠️ แก้ไขจุดที่ 2: ปรับให้สิทธิ์ staff มองเห็น อสม. ทุกคนในหมู่/ชุมชนตนเอง "และเห็นบัญชีของตัวเอง" ด้วย
       filteredVhvs = filteredVhvs.filter(u => 
         u.pid_vhv === activeVhvSession.vhvId || 
         (u.moo === activeVhvSession.moo && (!activeVhvSession.community || u.community === activeVhvSession.community))
       );
     }
-    // สิทธิ์ admin จะผ่านฉลุย มองเห็นทั้งหมดทุกหมู่บ้าน/ชุมชนโดยไม่มีตัวกรองออก
 
-    // นำรายชื่อที่ผ่านการกรองสิทธิ์มาประมวลผลนับยอดเป้าหมายและผลงานจริง
     masterVhvPerformanceList = filteredVhvs.map(u => {
       const myCitizens = dataRows.filter(r => 
         (r.vhv_pid && r.vhv_pid.toString() === u.pid_vhv.toString()) || 
@@ -452,11 +457,10 @@ async function fetchVhvPerformanceReportFromServer() {
         done: done,
         pending: pending,
         percentage: percentage,
-        role: u.role // เก็บสิทธิ์ไว้กรองขั้นสุดท้าย
+        role: u.role
       };
     });
 
-    // 🛠️ แก้ไขจุดที่ 3: กรองเปิดแสดงเฉพาะคนที่มีกลุ่มเป้าหมายในดูแลจริง หรือเป็นสิทธิ์ user/staff เพื่อไม่ให้รายชื่อแอดมินระบบที่ไม่มีเป้าหมายมาแสดงให้รกตาราง
     masterVhvPerformanceList = masterVhvPerformanceList.filter(item => 
       item.target > 0 || item.role === 'user' || item.name === activeVhvSession.name
     );
@@ -509,8 +513,6 @@ async function fetchManagementTargetsFromServer() {
     }); 
     toggleLoaderDisplay(false); 
     masterTargetMgList = (records || []).map(r => {
-      
-      /* 🛠️ [แก้ไขสำเร็จ] ป้องกันคำว่า "ชุมชน" ซ้ำซ้อนในหน้ากลุ่มเป้าหมาย */
       let cleanComm = r.community ? r.community.trim() : "";
       let communityStr = "";
       if (cleanComm !== "") {
@@ -556,7 +558,21 @@ async function fetchUserAccountsFromServer() {
     const { data: users } = await db.from('users').select('*').order('id', { ascending: true });
     toggleLoaderDisplay(false); const tbody = document.getElementById('usersTableBody'); if (!tbody) return; tbody.innerHTML = '';
     if (users) {
-      users.forEach(u => {
+      let displayedUsers = users || [];
+      
+      /* 🛠️ ปรับปรุงระบบสโคปสิทธิ์การเรียกดูบัญชีรายชื่อ อสม. ตามที่คุณอภิวัฒน์ระบุ */
+      if (activeVhvSession.role === 'staff') {
+        // 1. สิทธิ์ staff: ให้มองเห็นเฉพาะ อสม. / ผู้ใช้งานที่อยู่ชุมชนเดียวกับตนเองเท่านั้น
+        displayedUsers = displayedUsers.filter(u => u.community === activeVhvSession.community);
+      } else if (activeVhvSession.role === 'admin') {
+        // 2. สิทธิ์ admin: มองเห็นทั้งหมด และประมวลผลควบคู่ตามตัวเลือก Dropdown บนหน้าเว็บ
+        const commFilter = document.getElementById('selectUserFilterCommunity') ? document.getElementById('selectUserFilterCommunity').value : '';
+        if (commFilter !== '') {
+          displayedUsers = displayedUsers.filter(u => u.community === commFilter);
+        }
+      }
+
+      displayedUsers.forEach(u => {
         let editBtn = `<button class="btn btn-sm btn-warning fw-bold fs-6 rounded-pill px-3 me-2" onclick="openEditUserModal(${JSON.stringify(u).replace(/"/g, '&quot;')})"><i class="fa-solid fa-user-pen"></i> แก้ไข</button>`;
         let deleteBtn = `<button class="btn btn-sm btn-danger fw-bold fs-6 rounded-pill px-3" onclick="executeUserCrudAction('DELETE', ${u.id})"><i class="fa fa-trash"></i> ลบ</button>`;
         if(activeVhvSession.role === 'staff') { deleteBtn = `<span class="badge bg-light text-muted fs-6">ล็อกสิทธิ์การลบ</span>`; if (u.role === 'admin') { editBtn = `<span class="badge bg-light text-muted fs-6 me-2">ล็อกสิทธิ์จัดการ Admin</span>`; } }
@@ -686,23 +702,13 @@ function executeExportTargetMgToExcel() {
     Swal.fire({ icon: 'error', title: 'ไม่พบข้อมูล', text: 'ไม่มีข้อมูลกลุ่มเป้าหมายสำหรับการส่งออกไฟล์' }); 
     return; 
   } 
-  
-  // 1. เตรียมข้อมูลส่วนหัวและเนื้อหาแถวตาราง
   const worksheetData = [["ชื่อ - นามสกุลเป้าหมาย", "อายุ", "ที่อยู่ปัจจุบัน", "อสม. ผู้รับผิดชอบ", "สถานะถิ่นพำนักปัจจุบัน"]]; 
   filteredTargetMgList.forEach(item => { 
     worksheetData.push([item.name, item.age + " ปี", item.address, item.vhv_name, item.status_area]); 
   }); 
-
-  // 2. แปลงข้อมูล Array เป็นแผ่นงาน Worksheet
   const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-  
-  // 3. สร้างเล่ม Workbook ใหม่
   const workbook = XLSX.utils.book_new();
-  
-  // 4. นำแผ่นงานไปใส่ในเล่ม Workbook (แยกบรรทัดเพื่อป้องกันค่าส่งกลับเป็น undefined)
   XLSX.utils.book_append_sheet(workbook, worksheet, "เป้าหมาย");
-  
-  // 5. สั่งดาวน์โหลดไฟล์ Excel ออกมายังเครื่องผู้ใช้งาน
   XLSX.writeFile(workbook, "ทะเบียนกลุ่มเป้าหมายประชากร_Smart_NCD_Care.xlsx"); 
 }
 
