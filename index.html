@@ -80,6 +80,7 @@
               <li class="nav-item admin-staff-only d-none"><a class="nav-link fs-4 py-2" id="btn-view-mgusr" onclick="changeViewWindow('mgusr')"><i class="fa-solid fa-user-gear me-2 text-purple"></i>6.จัดการผู้ใช้</a></li>
               <li class="nav-item admin-staff-only d-none"><a class="nav-link fs-4 py-2" id="btn-view-report" onclick="changeViewWindow('report')"><i class="fa-solid fa-file-invoice text-dark-blue me-2"></i>7.รายงาน</a></li>
               <li class="nav-item admin-only d-none"><a class="nav-link fs-4 py-2" id="btn-view-upload" onclick="changeViewWindow('upload')"><i class="fa-solid fa-file-import text-orange me-2"></i>8.ศูนย์แอดมิน</a></li>
+              <li class="nav-item admin-only d-none"><a class="nav-link fs-4 py-2" id="btn-view-logs" onclick="changeViewWindow('logs')"><i class="fa-solid fa-clock-rotate-left text-secondary me-2"></i>9.ประวัติระบบ (Log)</a></li>
             </ul>
           </div>
         </nav>
@@ -361,6 +362,38 @@
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <div id="view-window-logs" class="sub-view-panel d-none">
+              <div class="d-flex justify-content-between align-items-center pt-2 mb-3 flex-wrap gap-2">
+                <div>
+                  <h2 class="fw-black text-dark m-0">9. ทะเบียนบันทึกประวัติการเปลี่ยนแปลงข้อมูลระบบ (Audit Log)</h2>
+                  <p class="text-muted fs-4 m-0">ระบบจัดเก็บและตรวจสอบย้อนหลังตามพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล (PDPA)</p>
+                </div>
+                <div class="d-flex gap-2">
+                  <button class="btn btn-success btn-lg fs-4 fw-bold rounded-pill px-4" onclick="executeExportLogsToExcel()"><i class="fa-solid fa-file-excel me-2"></i> ส่งออกประวัติเป็น Excel</button>
+                  <button class="btn btn-danger btn-lg fs-4 fw-bold rounded-pill px-4" onclick="executeClearLogsDatabaseAction()"><i class="fa-solid fa-dumpster me-2"></i> สำรองไฟล์พร้อมรีเซ็ตล้าง Log</button>
+                </div>
+              </div>
+              <div class="card card-container-panel p-0 table-responsive">
+                <table class="table table-bordered table-striped align-middle mb-0 mobile-card-table">
+                  <thead class="table-dark fs-5 text-white">
+                    <tr>
+                      <th>วัน-เวลาบันทึก</th>
+                      <th>ผู้ดำเนินการ</th>
+                      <th>สิทธิ์ระบบ</th>
+                      <th>ประเภทคำสั่ง</th>
+                      <th>ชื่อตาราง</th>
+                      <th>ไอดีอ้างอิง</th>
+                      <th>รายละเอียดเชิงลึก</th>
+                    </tr>
+                  </thead>
+                  <tbody id="logsTableBody" class="fs-5 text-dark fw-bold">
+                    <tr><td colspan="7" class="text-center text-muted py-4">กำลังดึงข้อมูลประวัติระบบ...</td></tr>
+                  </tbody>
+                </table>
+                <div class="p-3 d-flex justify-content-between align-items-center bg-light border-top flex-wrap gap-2"><span class="fs-4 text-muted fw-bold" id="labelLogsPaginationInfo">-</span><nav><ul class="pagination pagination-lg mb-0" id="paginationLogsWrapper"></ul></nav></div>
               </div>
             </div>
 
