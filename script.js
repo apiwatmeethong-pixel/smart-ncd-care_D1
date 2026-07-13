@@ -10,13 +10,14 @@ let masterVhvPerformanceList = [];
 let masterTargetMgList = [];
 let filteredTargetMgList = [];
 let masterReportList = [];
-let masterLogList = []; // ทะเบียนคลังเก็บ Audit Log
+let masterLogList = []; 
+let masterUserAccountsDataset = []; // คลังจัดเก็บข้อมูลบัญชีผู้ใช้ส่วนกลางเพื่อป้องกันการแปลงสตริงผิดพลาด
 
 let tableCurrentPage = 1;
 let perfCurrentPage = 1;
 let tgtMgCurrentPage = 1;
 let reportCurrentPage = 1;
-let logsCurrentPage = 1; // หน้าปัจจุบันของ Log
+let logsCurrentPage = 1; 
 
 const rowsPerPageLimit = 10;
 let failedLoginAttemptsCount = 0;
@@ -25,7 +26,7 @@ let bootstrapUserModalInstance;
 let tableSearchDebounceTimeout;
 let targetMgSearchDebounceTimeout;
 
-/* 🛡️ [PDPA Standard] ฟังก์ชันส่วนกลางสำหรับบันทึกประวัติการเข้าถึงและการปรับปรุงแก้ไขข้อมูล */
+/* [Audit Log System] ฟังก์ชันส่วนกลางสำหรับบันทึกประวัติการเข้าถึงและการปรับปรุงแก้ไขข้อมูลตามหลัก PDPA */
 async function insertAuditLog(action, tableName, recordId, details = '') {
   try {
     const logPayload = {
@@ -38,7 +39,7 @@ async function insertAuditLog(action, tableName, recordId, details = '') {
     };
     await db.from('logs').insert([logPayload]);
   } catch (err) {
-    console.error('⚠️ ไม่สามารถบันทึก Audit Log เข้าสู่ระบบได้:', err);
+    console.error('[Log Error] ไม่สามารถบันทึก Audit Log เข้าสู่ระบบได้:', err);
   }
 }
 
@@ -53,7 +54,7 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
     else {
       allRecords = allRecords.concat(data);
       if (data.length < batchSize) { keepGoing = false; } 
-      else { startRange += batchSize; }
+      else { startRange += batchRange; startRange += batchSize; }
     }
   }
   return allRecords;
@@ -103,7 +104,7 @@ function changeViewWindow(targetView) {
   else if (targetView === 'mgtgt') { fetchManagementTargetsFromServer(); }
   else if (targetView === 'mgusr') { fetchUserAccountsFromServer(); } 
   else if (targetView === 'report') { fetchScreeningReportDataFromServer(); }
-  else if (targetView === 'logs') { fetchLogDataFromServer(); } // เรียกโหลดประวัติระบบ
+  else if (targetView === 'logs') { fetchLogDataFromServer(); } 
 }
 
 async function executeLogin(e) {
@@ -139,7 +140,6 @@ async function executeLogin(e) {
     else if (user.role === 'staff') { document.querySelectorAll('.admin-staff-only').forEach(el => el.classList.remove('d-none')); document.querySelectorAll('.admin-only').forEach(el => el.classList.add('d-none')); } 
     else { document.querySelectorAll('.admin-staff-only').forEach(el => el.classList.add('d-none')); document.querySelectorAll('.admin-only').forEach(el => el.classList.add('d-none')); }
     
-    /* 🛡️ บันทึก Log การเข้าสู่ระบบเข้าตามมาตราฐานความปลอดภัย */
     await insertAuditLog('USER_LOGIN', 'users', user.id, `ผู้ใช้งานเข้าสู่ระบบสิทธิ์ ${user.role}`);
 
     toggleLoaderDisplay(false); document.getElementById('loginSection').classList.add('d-none'); document.getElementById('mainInterface').classList.remove('d-none');
@@ -359,20 +359,20 @@ function runClinicalEvaluationEngine() {
 
   let exTxt = ""; 
   if (waist > 0) {
-    if (isObese) { exTxt += `<br>⚠️ <strong>ดัชนีรอบเอว (${gender}):</strong> เกินเกณฑ์มาตรฐาน (รอบเอวของท่านคือ ${waist} ซม. / เกณฑ์ปกติของเพศนี้ต้องไม่เกิน ${waistLimit} ซม.) มีภาวะอ้วนลงพุง`; } 
-    else { exTxt += `<br>✅ <strong>ดัชนีรอบเอว (${gender}):</strong> อยู่ในเกณฑ์ปลอดภัย (รอบเอวของท่านคือ ${waist} ซม. / เกณฑ์ปกติของเพศนี้ต้องไม่เกิน ${waistLimit} ซม.)`; }
+    if (isObese) { exTxt += "<br>ดัชนีรอบเอว (" + gender + "): เกินเกณฑ์มาตรฐาน (รอบเอวคือ " + waist + " ซม. / ปกติต้องไม่เกิน " + waistLimit + " ซม.) มีภาวะอ้วนลงพุง"; } 
+    else { exTxt += "<br>ดัชนีรอบเอว (" + gender + "): อยู่ในเกณฑ์ปลอดภัย (รอบเอวคือ " + waist + " ซม. / ปกติต้องไม่เกิน " + waistLimit + " ซม.)"; }
   }
 
   const box = document.getElementById('rt-summary-box'); const tSt = document.getElementById('rt-status-text'); const tAd = document.getElementById('rt-advice-text'); if (!box || !tSt || !tAd) return;
   if (sbp >= 140 || dbp >= 90 || bsl >= 126 || bpColor === 'bg-danger' || dmColor === 'bg-danger') {
-    tSt.innerText = "กลุ่มสงสัยป่วยรายใหม่ (สีแดง)"; tAd.innerHTML = `<strong>💡 คำแนะนำประเมินตนเอง:</strong> ผลตรวจสัญญาณชีพของท่านวันนี้สูงกว่าเกณฑ์ปกติ แนะนำให้ท่านงดกิจกรรมที่ใช้แรงหนัก หลีกเลี่ยงอาหารรสเค็มจัดหรือหวานจัดชั่วคราว และขอเชิญท่านเข้าพบเจ้าหน้าที่สาธารณสุข ณ อนามัย ภายในสัปดาห์นี้ เพื่อตรวจยืนยันความถูกต้องและรับคำแนะนำอย่างเหมาะสมต่อไปครับ` + exTxt;
+    tSt.innerText = "กลุ่มสงสัยป่วยรายใหม่ (สีแดง)"; tAd.innerHTML = "<strong>คำแนะนำประเมินตนเอง:</strong> ผลตรวจสัญญาณชีพของท่านวันนี้สูงกว่าเกณฑ์ปกติ แนะนำให้ท่านงดกิจกรรมที่ใช้แรงหนัก หลีกเลี่ยงอาหารรสเค็มจัดหรือหวานจัดชั่วคราว และขอเชิญท่านเข้าพบเจ้าหน้าที่สาธารณสุข ณ อนามัย ภายในสัปดาห์นี้ เพื่อตรวจยืนยันความถูกต้องและรับคำแนะนำอย่างเหมาะสมต่อไปครับ" + exTxt;
     box.style.borderColor = "#dc2626"; box.style.backgroundColor = "#fee2e2"; tSt.className = "fw-black my-2 fs-2 text-danger";
   } else if (sbp >= 120 || dbp >= 80 || bsl >= 100 || bmiVal >= 23 || cvdColor.includes('warning')) {
     tSt.innerText = "กลุ่มเสี่ยงโรคเรื้อรัง (สีเหลือง)"; box.style.borderColor = "#ca8a04"; box.style.backgroundColor = "#fef9c3"; tSt.className = "fw-black my-2 fs-2 text-warning-dark";
-    tAd.innerHTML = `<strong>💡 คำแนะนำประเมินตนเอง:</strong> ร่างกายของท่านเริ่มส่งสัญญาณเตือนว่ามีความเสี่ยงต่อโรค NCDs แนะนำให้ปรับเปลี่ยนพฤติกรรมในชีวิตประจำวัน โดยลดการบริโภคอาหารรสหวาน มัน เค็ม เพิ่มการรับประทานผักผลไม้ และออกกำลังกายหรือแกว่งแขนอย่างน้อยวันละ 30 นาที แล้วอีก 6 เดือนมาติดตามดูระดับตัวเลขสุขภาพร่วมกับ อสม. อีกครั้งนะครับ` + exTxt;
+    tAd.innerHTML = "<strong>คำแนะนำประเมินตนเอง:</strong> ร่างกายของท่านเริ่มส่งสัญญาณเตือนว่ามีความเสี่ยงต่อโรค NCDs แนะนำให้ปรับเปลี่ยนพฤติกรรมในชีวิตประจำวัน โดยลดการบริโภคอาหารรสหวาน มัน เค็ม เพิ่มการรับประทานผักผลไม้ และออกกำลังกายหรือแกว่งแขนอย่างน้อยวันละ 30 นาที แล้วอีก 6 เดือนมาติดตามดูระดับตัวเลขสุขภาพร่วมกับ อสม. อีกครั้งนะครับ" + exTxt;
   } else if (w > 0 && h > 0) {
     tSt.innerText = "กลุ่มปกติ สุขภาพดี (สีเขียว)"; box.style.borderColor = "#16a34a"; box.style.backgroundColor = "#dcfce7"; tSt.className = "fw-black my-2 fs-2 text-success";
-    tAd.innerHTML = `<strong>💡 คำแนะนำประเมินตนเอง:</strong> ยินดีด้วยครับ ผลการตรวจร่างกายโดยรวมของท่านอยู่ในเกณฑ์ปกติและสุขภาพแข็งแรงดีเยี่ยม ขอให้ท่านรักษาวินัยในการเลือกรับประทานอาหารที่มีประโยชน์และออกกำลังกายอย่างสม่ำเสมอแบบนี้ต่อไป และร่วมตรวจประเมินสุขภาพประจำปีกับ อสม. อีกครั้งในปีหน้านะครับ` + exTxt;
+    tAd.innerHTML = "<strong>คำแนะนำประเมินตนเอง:</strong> ยินดีด้วยครับ ผลการตรวจร่างกายโดยรวมของท่านอยู่ในเกณฑ์ปกติและสุขภาพแข็งแรงดีเยี่ยม ขอให้ท่านรักษาวินัยในการเลือกรับประทานอาหารที่มีประโยชน์และออกกำลังกายอย่างสม่ำเสมอแบบนี้ต่อไป และร่วมตรวจประเมินสุขภาพประจำปีกับ อสม. อีกครั้งในปีหน้านะครับ" + exTxt;
   } else { tSt.innerText = "ระบบรอคีย์ข้อมูล"; tAd.innerText = "กรอกตัวเลขเพื่อคำนวณผล"; box.style.borderColor = "#cbd5e0"; box.style.backgroundColor = "#f8f9fa"; tSt.className = "text-muted fs-4"; }
 }
 
@@ -398,7 +398,6 @@ async function submitFormScreeningData(e) {
     const { error: screenErr } = await db.from('screening').upsert([payload]); if (screenErr) throw screenErr;
     await db.from('data').update({ screening_date: new Date().toISOString().split('T')[0], weight: parseFloat(wRaw), height: parseFloat(hRaw), waist: parseFloat(waistRaw), sbp: sbp, dbp: dbp, bsl: bsl, interpretation_ht: document.getElementById('rt-bp').innerText, interpretation_dm: document.getElementById('rt-bsl').innerText }).eq('pid', citizenIdVal);
     
-    /* 🛡️ [PDPA Audit Log] บันทึกเมื่อบันทึกผลการคัดกรองสัญญาณชีพสำเร็จ */
     await insertAuditLog('UPSERT_SCREENING', 'screening', citizenIdVal, { name: payload.name, ncd_status: payload.ncd_status });
 
     toggleLoaderDisplay(false); Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500, showConfirmButton: false }); changeViewWindow('list'); 
@@ -417,25 +416,25 @@ function renderHealthRulesTable() {
   tbody.innerHTML += `
     <tr>
       <td data-label="ดัชนีชี้วัด"><span class="badge bg-info fs-5 px-3 py-2">รอบเอว (ชาย)</span></td>
-      <td data-label="ช่วงระดับเกณฑ์" class="fs-4">ไม่เกิน 90 เซนติเมตร (หรือ ไม่เกิน ส่วนสูง ÷ 2)</td>
+      <td data-label="ช่วงระดับเกณฑ์" class="fs-4">ไม่เกิน 90 เซนติเมตร (หรือ ไม่เกิน ส่วนสูง / 2)</td>
       <td data-label="ผลการวิเคราะห์" class="fs-4 text-success fw-bold">ปกติ</td>
       <td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">รอบเอวอยู่ในเกณฑ์ปลอดภัย ดัชนีรอบเอวสมส่วน ไม่มีความเสี่ยงภาวะอ้วนลงพุง</td>
     </tr>
     <tr>
       <td data-label="ดัชนีชี้วัด"><span class="badge bg-danger fs-5 px-3 py-2">รอบเอว (ชาย)</span></td>
-      <td data-label="ช่วงระดับเกณฑ์" class="fs-4">ตั้งแต่ 91 เซนติเมตร ขึ้นไป (หรือ เกินเกณฑ์ ส่วนสูง ÷ 2)</td>
+      <td data-label="ช่วงระดับเกณฑ์" class="fs-4">ตั้งแต่ 91 เซนติเมตร ขึ้นไป (หรือ เกินเกณฑ์ ส่วนสูง / 2)</td>
       <td data-label="ผลการวิเคราะห์" class="fs-4 text-danger fw-bold">อ้วนลงพุง</td>
       <td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">มีภาวะอ้วนลงพุง เสี่ยงต่อโรคแทรกซ้อนหลอดเลือดหัวใจ สมอง และเบาหวานรายใหม่</td>
     </tr>
     <tr>
       <td data-label="ดัชนีชี้วัด"><span class="badge fs-5 px-3 py-2 text-white" style="background-color: #db2777;">รอบเอว (หญิง)</span></td>
-      <td data-label="ช่วงระดับเกณฑ์" class="fs-4">ไม่เกิน 80 เซนติเมตร (หรือ ไม่เกิน ส่วนสูง ÷ 2)</td>
+      <td data-label="ช่วงระดับเกณฑ์" class="fs-4">ไม่เกิน 80 เซนติเมตร (หรือ ไม่เกิน ส่วนสูง / 2)</td>
       <td data-label="ผลการวิเคราะห์" class="fs-4 text-success fw-bold">ปกติ</td>
       <td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">รอบเอวอยู่ในเกณฑ์ปลอดภัย ดัชนีรอบเอวสมส่วน ไม่มีความเสี่ยงภาวะอ้วนลงพุง</td>
     </tr>
     <tr>
       <td data-label="ดัชนีชี้วัด"><span class="badge fs-5 px-3 py-2 text-white" style="background-color: #9d174d;">รอบเอว (หญิง)</span></td>
-      <td data-label="ช่วงระดับเกณฑ์" class="fs-4">ตั้งแต่ 81 เซนติเมตร ขึ้นไป (หรือ เกินเกณฑ์ ส่วนสูง ÷ 2)</td>
+      <td data-label="ช่วงระดับเกณฑ์" class="fs-4">ตั้งแต่ 81 เซนติเมตร ขึ้นไป (หรือ เกินเกณฑ์ ส่วนสูง / 2)</td>
       <td data-label="ผลการวิเคราะห์" class="fs-4 text-danger fw-bold">อ้วนลงพุง</td>
       <td data-label="แนวทางบอกต่อ" class="small text-muted fs-5">มีภาวะอ้วนลงพุง เสี่ยงต่อโรคแทรกซ้อนหลอดเลือดหัวใจ สมอง และเบาหวานรายใหม่</td>
     </tr>
@@ -474,14 +473,7 @@ async function fetchVhvPerformanceReportFromServer() {
       const percentage = target > 0 ? ((done / target) * 100).toFixed(1) : "0.0";
       
       return {
-        name: u.full_name,
-        moo: u.moo,
-        community: u.community || '',
-        target: target,
-        done: done,
-        pending: pending,
-        percentage: percentage,
-        role: u.role
+        name: u.full_name, moo: u.moo, community: u.community || '', target: target, done: done, pending: pending, percentage: percentage, role: u.role
       };
     });
 
@@ -575,7 +567,6 @@ async function toggleTargetLocationState(pid, el) {
     const idx = masterTargetMgList.findIndex(t => t.pid.toString() === pid.toString()); 
     if(idx !== -1) masterTargetMgList[idx].status_area = statusStr; 
     
-    /* 🛡️ [PDPA Audit Log] บันทึกความเคลื่อนไหวการย้ายถิ่นฐานประชากร */
     await insertAuditLog('UPDATE_LOCATION_STATE', 'data', pid, `เปลี่ยนสถานะถิ่นพำนักเป็น: ${statusStr}`);
     
     executeTargetMgTableFilter(false); 
@@ -603,6 +594,7 @@ async function fetchUserAccountsFromServer() {
   toggleLoaderDisplay(true);
   try {
     const { data: users } = await db.from('users').select('*').order('id', { ascending: true });
+    masterUserAccountsDataset = users || []; // เก็บบัญชีลง Global Array เพื่อความปลอดภัยทาง Syntax
     toggleLoaderDisplay(false); const tbody = document.getElementById('usersTableBody'); if (!tbody) return; tbody.innerHTML = '';
     if (users) {
       let displayedUsers = users || [];
@@ -618,7 +610,8 @@ async function fetchUserAccountsFromServer() {
       }
 
       displayedUsers.forEach(u => {
-        let editBtn = `<button class="btn btn-sm btn-warning fw-bold fs-6 rounded-pill px-3 me-2" onclick="openEditUserModal(${JSON.stringify(u).replace(/"/g, '&quot;')})"><i class="fa-solid fa-user-pen"></i> แก้ไข</button>`;
+        // [แก้ไขจุดเปราะบาง] ส่งเฉพาะ ID ตัวเลข u.id ไปที่ฟังก์ชันแทนการแปลง JSON สตริง ซึ่งจะไม่มีวันเกิด SyntaxError แน่นอน
+        let editBtn = `<button class="btn btn-sm btn-warning fw-bold fs-6 rounded-pill px-3 me-2" onclick="openEditUserModal(${u.id})"><i class="fa-solid fa-user-pen"></i> แก้ไข</button>`;
         let deleteBtn = `<button class="btn btn-sm btn-danger fw-bold fs-6 rounded-pill px-3" onclick="executeUserCrudAction('DELETE', ${u.id})"><i class="fa fa-trash"></i> ลบ</button>`;
         if(currentRole === 'staff') { deleteBtn = `<span class="badge bg-light text-muted fs-6">ล็อกสิทธิ์การลบ</span>`; if (u.role === 'admin') { editBtn = `<span class="badge bg-light text-muted fs-6 me-2">ล็อกสิทธิ์จัดการ Admin</span>`; } }
         
@@ -637,7 +630,11 @@ function openAddUserModal() {
   if (bootstrapUserModalInstance) bootstrapUserModalInstance.show();
 }
 
-function openEditUserModal(uObj) {
+function openEditUserModal(userId) {
+  // ดึงข้อมูลผู้ใช้ออกมาจาก Global Dataset ด้วย ID อย่างเสถียร
+  const uObj = masterUserAccountsDataset.find(u => u.id === userId);
+  if (!uObj) return;
+
   safetySetInputValue('modal_user_id', uObj.id); safetySetInputValue('modal_user', uObj.username); safetySetInputValue('modal_pass', uObj.password); safetySetInputValue('modal_fullname', uObj.full_name); safetySetInputValue('modal_type', uObj.role); safetySetInputValue('modal_moo', uObj.moo); safetySetInputValue('modal_pid_อสม', uObj.pid_vhv);
   safetySetInputValue('modal_community', uObj.community || ""); 
   safetySetTextContent('userModalTitle', "แก้ไขข้อมูลระเบียบบัญชี อสม.");
@@ -661,12 +658,10 @@ async function executeSaveUserForm(e) {
       payload.id = maxId + 1; 
       await db.from('users').insert([payload]);
       
-      /* 🛡️ [PDPA Audit Log] บันทึกการเพิ่มผู้ใช้งานใหม่ */
       await insertAuditLog('INSERT_USER', 'users', payload.id, { username: payload.username, full_name: payload.full_name, role: payload.role });
     } else { 
       await db.from('users').update(payload).eq('id', uid); 
       
-      /* 🛡️ [PDPA Audit Log] บันทึกการแก้ไขข้อมูลผู้ใช้งาน */
       await insertAuditLog('UPDATE_USER', 'users', uid, { username: payload.username, full_name: payload.full_name, role: payload.role });
     }
     toggleLoaderDisplay(false); if (bootstrapUserModalInstance) bootstrapUserModalInstance.hide(); fetchUserAccountsFromServer();
@@ -681,7 +676,6 @@ async function executeUserCrudAction(action, userId) {
         toggleLoaderDisplay(true); 
         await db.from('users').delete().eq('id', userId); 
         
-        /* 🛡️ [PDPA Audit Log] บันทึกการลบผู้ใช้งาน */
         await insertAuditLog('DELETE_USER', 'users', userId, `ลบบัญชีผู้ใช้ไอดี: ${userId} ออกจากฐานข้อมูลระบบ`);
 
         toggleLoaderDisplay(false); fetchUserAccountsFromServer(); Swal.fire('ถูกลบแล้ว!', '', 'success'); 
@@ -843,7 +837,6 @@ async function executeProcessingCsvUploadToServer() {
         const uniqueUsersMap = new Map(); typedData.forEach(item => uniqueUsersMap.set(item.id, item)); const finalUniqueUsers = Array.from(uniqueUsersMap.values());
         const { error: upsertErr } = await db.from('users').upsert(finalUniqueUsers); if (upsertErr) throw upsertErr;
         
-        /* 🛡️ [PDPA Audit Log] บันทึกการนำเข้าชุดบัญชีผู้ใช้ปริมาณมาก */
         await insertAuditLog('IMPORT_CSV_USERS', 'users', 'BATCH', `นำเข้าข้อมูลบัญชีรายชื่อ อสม. จำนวน ${finalUniqueUsers.length} รายการผ่าน CSV`);
 
         Swal.fire({ icon: 'success', title: 'นำเข้าบัญชี อสม. สำเร็จ!', text: `อัปเดต/เพิ่มรายชื่อผู้ใช้งานตาราง users จำนวน ${finalUniqueUsers.length} รายการเรียบร้อย` });
@@ -863,7 +856,6 @@ async function executeProcessingCsvUploadToServer() {
         
         const { error: upsertErr } = await db.from('data').upsert(finalUniqueData); if (upsertErr) throw upsertErr;
         
-        /* 🛡️ [PDPA Audit Log] บันทึกการนำเข้าชุดประชากรเป้าหมายผ่าน CSV */
         await insertAuditLog('IMPORT_CSV_TARGETS', 'data', 'BATCH', `นำเข้าข้อมูลประชากรกลุ่มเป้าหมายจำนวน ${finalUniqueData.length} รายการผ่าน CSV`);
 
         Swal.fire({ icon: 'success', title: 'นำเข้าข้อมูลเป้าหมายสำเร็จ!', text: `ระบบอัปเดตข้อมูลรวมถึงวันเกิดสากลและสัญญาณชีพเข้าตาราง data จำนวน ${finalUniqueData.length} รายการเรียบร้อยครับ` });
@@ -875,7 +867,7 @@ async function executeProcessingCsvUploadToServer() {
    
 async function executeClearScreeningDatabaseAction() {
   Swal.fire({
-    title: 'ยืนยันการรีเซ็ตล้างฐานข้อมูล?', text: "🚨 คำเตือนสำคัญ: คำสั่งนี้จะทำการล้างประวัติการคัดกรองสัญญาณชีพของปีนี้ทั้งหมดออกจากตาราง screening เพื่อเคลียร์ฐานข้อมูลให้ว่างเปล่าพร้อมรับปีงบประมาณใหม่ ข้อมูลเดิมจะสูญหายถาวร!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#64748b', confirmButtonText: 'ใช่, ฉันต้องการล้างประวัติคัดกรอง', cancelButtonText: 'ยกเลิก'
+    title: 'ยืนยันการรีเซ็ตล้างฐานข้อมูล?', text: "[คำเตือนสำคัญ] คำสั่งนี้จะทำการล้างประวัติการคัดกรองสัญญาณชีพของปีนี้ทั้งหมดออกจากตาราง screening เพื่อเคลียร์ฐานข้อมูลให้ว่างเปล่าพร้อมรับปีงบประมาณใหม่ ข้อมูลเดิมจะสูญหายถาวร!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#64748b', confirmButtonText: 'ใช่, ฉันต้องการล้างประวัติคัดกรอง', cancelButtonText: 'ยกเลิก'
   }).then(async (result) => {
     if (result.isConfirmed) {
       toggleLoaderDisplay(true);
@@ -883,7 +875,6 @@ async function executeClearScreeningDatabaseAction() {
         const { error: delErr } = await db.from('screening').delete().neq('id', 'all_clear_trigger'); if (delErr) throw delErr;
         const { error: updateErr } = await db.from('data').update({ screening_date: null, weight: null, height: null, waist: null, sbp: null, dbp: null, bsl: null, interpretation_ht: null, interpretation_dm: null }).neq('pid', 0); if (updateErr) throw updateErr;
         
-        /* 🛡️ [PDPA Audit Log] บันทึกเมื่อมีการสั่งล้างประวัติคัดกรองยกชุด */
         await insertAuditLog('CLEAR_ALL_SCREENINGS', 'screening', 'ALL_RECORDS', 'สั่งล้างข้อมูลสัญญาณชีพและประวัติผลการคัดกรองประจำปีเพื่อเริ่มต้นปีงบประมาณใหม่');
 
         Swal.fire({ icon: 'success', title: 'ระบบล้างฐานข้อมูลเสร็จสิ้น', text: 'ล้างข้อมูลประวัติและเตรียมระบบรับการคัดกรองรอบใหม่เรียบร้อยแล้วครับ' });
@@ -894,14 +885,122 @@ async function executeClearScreeningDatabaseAction() {
 
 async function executeClearTargetDatabaseAction() {
   Swal.fire({
-    title: 'ยืนยันการล้างรายชื่อเป้าหมาย?', text: "🚨 คำเตือนขั้นเด็ดขาด: คำสั่งนี้จะล้างทำลายรายชื่อประชากรทั้งหมดออกจากตาราง data ทันที! อสม. จะไม่เห็นรายชื่อประชาชนใดๆ ในระบบจนกว่าแอดมินจะนำเข้าไฟล์ CSV ชุดใหม่เข้าไปทดแทน!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#64748b', confirmButtonText: 'ใช่, ฉันต้องการล้างรายชื่อประชากรทั้งหมด', cancelButtonText: 'ยกเลิก'
+    title: 'ยืนยันการล้างรายชื่อเป้าหมาย?', text: "[คำเตือนขั้นเด็ดขาด] คำสั่งนี้จะล้างทำลายรายชื่อประชากรทั้งหมดออกจากตาราง data ทันที! อสม. จะไม่เห็นรายชื่อประชาชนใดๆ ในระบบจนกว่าแอดมินจะนำเข้าไฟล์ CSV ชุดใหม่เข้าไปทดแทน!", icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc2626', cancelButtonColor: '#64748b', confirmButtonText: 'ใช่, ฉันต้องการล้างรายชื่อประชากรทั้งหมด', cancelButtonText: 'ยกเลิก'
   }).then(async (result) => {
     if (result.isConfirmed) {
       toggleLoaderDisplay(true);
       try {
         const { error: delErr } = await db.from('data').delete().neq('pid', 0); if (delErr) throw delErr;
         
-        /* 🛡️ [PDPA Audit Log] บันทึกการสั่งทำลายล้างข้อมูลทะเบียนรายชื่อฐานราก */
         await insertAuditLog('CLEAR_ALL_TARGETS', 'data', 'ALL_RECORDS', 'สั่งล้างรายชื่อประชากรเป้าหมายทั้งหมดออกจากตารางข้อมูลหลัก data');
 
-        Swal.fire({ icon: 'success', title: 'ล้างข้อมูลเป้าหมายสำเร็จ', text: 'รายชื่อประชากรในตาราง data ถูกเคลียร์ลบเป็นช่องว่างคลีน 100%
+        Swal.fire({ icon: 'success', title: 'ล้างข้อมูลเป้าหมายสำเร็จ', text: 'รายชื่อประชากรในตาราง data ถูกเคลียร์ลบเป็นช่องว่างคลีน 100% แล้วครับ' });
+      } catch (err) { Swal.fire({ icon: 'error', title: 'ทำรายการไม่สำเร็จ', text: err.message }); } finally { toggleLoaderDisplay(false); }
+    }
+  });
+}
+
+/* จัดการดึงประวัติ Audit Log และแผงตารางเมนูที่ 9 */
+async function fetchLogDataFromServer() {
+  toggleLoaderDisplay(true);
+  try {
+    const records = await supabaseSelectAll('logs', '*', (q) => q.order('created_at', { ascending: false }));
+    toggleLoaderDisplay(false);
+    masterLogList = records || [];
+    const maxPage = Math.ceil(masterLogList.length / rowsPerPageLimit) || 1;
+    logsCurrentPage = Math.max(1, Math.min(logsCurrentPage, maxPage));
+    renderLogTable();
+  } catch (err) {
+    toggleLoaderDisplay(false);
+    Swal.fire({ icon: 'error', title: 'โหลดข้อมูลล้มเหลว', text: err.message });
+  }
+}
+
+function renderLogTable() {
+  const tbody = document.getElementById('logsTableBody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  
+  if (masterLogList.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4 fs-4">ยังไม่มีบันทึกประวัติความเคลื่อนไหวในระบบคัดกรอง</td></tr>';
+    safetySetTextContent('labelLogsPaginationInfo', 'แสดงผล 0 รายการ');
+    document.getElementById('paginationLogsWrapper').innerHTML = '';
+    return;
+  }
+
+  const st = (logsCurrentPage - 1) * rowsPerPageLimit;
+  const ed = Math.min(st + rowsPerPageLimit, masterLogList.length);
+  const slice = masterLogList.slice(st, ed);
+
+  slice.forEach(log => {
+    let localTime = new Date(log.created_at).toLocaleString('th-TH');
+    let detailText = typeof log.details === 'object' ? JSON.stringify(log.details) : log.details;
+    
+    tbody.innerHTML += `<tr>
+      <td data-label="วัน-เวลาบันทึก">${localTime}</td>
+      <td data-label="ผู้ดำเนินการ" class="text-primary">${log.operator_name}</td>
+      <td data-label="สิทธิ์ระบบ"><span class="badge bg-secondary">${log.operator_role}</span></td>
+      <td data-label="ประเภทคำสั่ง"><span class="badge bg-info text-dark">${log.action}</span></td>
+      <td data-label="ชื่อตาราง"><code>${log.table_name}</code></td>
+      <td data-label="ไอดีอ้างอิง">${log.record_id}</td>
+      <td data-label="รายละเอียดเชิงลึก" class="small text-muted text-wrap" style="max-width:250px; word-break:break-all;">${detailText || '-'}</td>
+    </tr>`;
+  });
+
+  safetySetTextContent('labelLogsPaginationInfo', `แสดงแถวที่ ${st + 1} ถึง ${ed} จากทั้งหมด ${masterLogList.length} รายการ`);
+  compileSmartPaginationLinks(logsCurrentPage, masterLogList.length, 'paginationLogsWrapper', 'shiftLogsPage');
+}
+
+function executeExportLogsToExcel() {
+  if (masterLogList.length === 0) {
+    Swal.fire({ icon: 'error', title: 'ไม่พบข้อมูล', text: 'ไม่มีประวัติความเคลื่อนไหวระบบสำหรับนำออกไฟล์' });
+    return;
+  }
+  const worksheetData = [["วัน-เวลา", "ผู้ดำเนินการ", "สิทธิ์ระบบ", "คำสั่งดำเนินการ", "ตารางเป้าหมาย", "ไอดีอ้างอิง", "รายละเอียดความเคลื่อนไหว"]];
+  masterLogList.forEach(log => {
+    let localTime = new Date(log.created_at).toLocaleString('th-TH');
+    let detailText = typeof log.details === 'object' ? JSON.stringify(log.details) : log.details;
+    worksheetData.push([localTime, log.operator_name, log.operator_role, log.action, log.table_name, log.record_id, detailText]);
+  });
+  
+  const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "SystemAuditLogs");
+  XLSX.writeFile(workbook, "ทะเบียนประวัติการใช้งานระบบ_Smart_NCD_Care_AuditLogs.xlsx");
+}
+
+async function executeClearLogsDatabaseAction() {
+  if (masterLogList.length === 0) {
+    Swal.fire({ icon: 'warning', title: 'ตารางว่างอยู่แล้ว', text: 'ไม่พบรายการล็อกข้อมูลที่จำเป็นต้องเคลียร์ล้างพื้นที่ครับ' });
+    return;
+  }
+  
+  Swal.fire({
+    title: 'ยืนยันสำรองไฟล์และรีเซ็ต Log?',
+    text: "[ข้อกำหนด PDPA] ระบบจะบังคับส่งออกแผ่นงานไฟล์ Excel สำรองข้อมูลประวัติทั้งหมดลงเครื่องของท่านโดยอัตโนมัติก่อนทันที! จากนั้นจึงจะล้างประวัติใน Supabase ครับ",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#dc2626',
+    cancelButtonColor: '#64748b',
+    confirmButtonText: 'ดาวน์โหลด Excel และเคลียร์ล้างระบบ',
+    cancelButtonText: 'ยกเลิกคำสั่ง'
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      executeExportLogsToExcel();
+      toggleLoaderDisplay(true);
+      try {
+        const { error } = await db.from('logs').delete().neq('id', 0);
+        if (error) throw error;
+        
+        await insertAuditLog('RESET_AUDIT_LOGS', 'logs', 'ALL_RECORDS', 'ทำการเคลียร์ล้างพื้นที่ทะเบียนประวัติระบบทั้งหมดพร้อมส่งออกไฟล์สำรองภายนอกเรียบร้อย');
+        
+        toggleLoaderDisplay(false);
+        Swal.fire({ icon: 'success', title: 'รีเซ็ตคลังล็อกสำเร็จ!', text: 'ล้างข้อมูลเรียบร้อยและดาวน์โหลดไฟล์สำรองลงเครื่องแล้วครับ' });
+        fetchLogDataFromServer(); 
+      } catch (err) {
+        toggleLoaderDisplay(false);
+        Swal.fire({ icon: 'error', title: 'ทำรายการล้มเหลว', text: err.message });
+      }
+    }
+  });
+}
