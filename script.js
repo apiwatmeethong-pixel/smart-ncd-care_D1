@@ -11,7 +11,7 @@ let masterTargetMgList = [];
 let filteredTargetMgList = [];
 let masterReportList = [];
 let masterLogList = []; 
-let masterUserAccountsDataset = []; // คลังจัดเก็บข้อมูลบัญชีผู้ใช้ส่วนกลางเพื่อป้องกันการแปลงสตริงผิดพลาด
+let masterUserAccountsDataset = []; 
 
 let tableCurrentPage = 1;
 let perfCurrentPage = 1;
@@ -54,7 +54,7 @@ async function supabaseSelectAll(tableName, columns = '*', applyFiltersFn = null
     else {
       allRecords = allRecords.concat(data);
       if (data.length < batchSize) { keepGoing = false; } 
-      else { startRange += batchRange; startRange += batchSize; }
+      else { startRange += batchSize; } 
     }
   }
   return allRecords;
@@ -594,7 +594,7 @@ async function fetchUserAccountsFromServer() {
   toggleLoaderDisplay(true);
   try {
     const { data: users } = await db.from('users').select('*').order('id', { ascending: true });
-    masterUserAccountsDataset = users || []; // เก็บบัญชีลง Global Array เพื่อความปลอดภัยทาง Syntax
+    masterUserAccountsDataset = users || []; 
     toggleLoaderDisplay(false); const tbody = document.getElementById('usersTableBody'); if (!tbody) return; tbody.innerHTML = '';
     if (users) {
       let displayedUsers = users || [];
@@ -610,7 +610,6 @@ async function fetchUserAccountsFromServer() {
       }
 
       displayedUsers.forEach(u => {
-        // [แก้ไขจุดเปราะบาง] ส่งเฉพาะ ID ตัวเลข u.id ไปที่ฟังก์ชันแทนการแปลง JSON สตริง ซึ่งจะไม่มีวันเกิด SyntaxError แน่นอน
         let editBtn = `<button class="btn btn-sm btn-warning fw-bold fs-6 rounded-pill px-3 me-2" onclick="openEditUserModal(${u.id})"><i class="fa-solid fa-user-pen"></i> แก้ไข</button>`;
         let deleteBtn = `<button class="btn btn-sm btn-danger fw-bold fs-6 rounded-pill px-3" onclick="executeUserCrudAction('DELETE', ${u.id})"><i class="fa fa-trash"></i> ลบ</button>`;
         if(currentRole === 'staff') { deleteBtn = `<span class="badge bg-light text-muted fs-6">ล็อกสิทธิ์การลบ</span>`; if (u.role === 'admin') { editBtn = `<span class="badge bg-light text-muted fs-6 me-2">ล็อกสิทธิ์จัดการ Admin</span>`; } }
@@ -631,7 +630,6 @@ function openAddUserModal() {
 }
 
 function openEditUserModal(userId) {
-  // ดึงข้อมูลผู้ใช้ออกมาจาก Global Dataset ด้วย ID อย่างเสถียร
   const uObj = masterUserAccountsDataset.find(u => u.id === userId);
   if (!uObj) return;
 
