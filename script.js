@@ -681,7 +681,30 @@ function executeSaveAdviceCardAsImage() {
 }
 
 function executeFallbackDownloadMechanism(canvas, dateNow) { const imgBase64Uri = canvas.toDataURL("image/png"); const downloadAnchor = document.createElement('a'); downloadAnchor.download = `บัตรแนะนำสุขภาพ_SmartNCDCare_${dateNow.getTime()}.png`; downloadAnchor.href = imgBase64Uri; downloadAnchor.click(); Swal.fire({ icon: 'success', title: 'ดาวน์โหลดภาพสำรองสำเร็จ', text: 'ระบบทำการเซฟภาพลงในเครื่องให้แทนโดยอัตโนมัติ', confirmButtonColor: '#0284c7' }); }
-function executeExportTargetMgToExcel() { if (filteredTargetMgList.length === 0) { Swal.fire({ icon: 'error', title: 'ไม่พบข้อมูล' }); return; } const worksheetData = [["ชื่อ - นามสกุลเป้าหมาย", "อายุ", "ที่อยู่ปัจจุบัน", "อสม. ผู้รับผิดชอบ", "สถานะถิ่นพำนักปัจจุบัน"]]; filteredTargetMgList.forEach(item => { worksheetData.push([item.name, item.age + " ปี", item.address, item.vhv_name, item.status_area]); }); XLSX.writeFile(XLSX.utils.book_append_sheet(XLSX.utils.book_new(), XLSX.utils.aoa_to_sheet(worksheetData), "เป้าหมาย"), "ทะเบียนกลุ่มเป้าหมายประชากร_Smart_NCD_Care.xlsx"); }
+function executeExportTargetMgToExcel() { 
+  if (filteredTargetMgList.length === 0) { 
+    Swal.fire({ icon: 'error', title: 'ไม่พบข้อมูล', text: 'ไม่มีข้อมูลกลุ่มเป้าหมายสำหรับการส่งออกไฟล์' }); 
+    return; 
+  } 
+  
+  // 1. เตรียมข้อมูลส่วนหัวและเนื้อหาแถวตาราง
+  const worksheetData = [["ชื่อ - นามสกุลเป้าหมาย", "อายุ", "ที่อยู่ปัจจุบัน", "อสม. ผู้รับผิดชอบ", "สถานะถิ่นพำนักปัจจุบัน"]]; 
+  filteredTargetMgList.forEach(item => { 
+    worksheetData.push([item.name, item.age + " ปี", item.address, item.vhv_name, item.status_area]); 
+  }); 
+
+  // 2. แปลงข้อมูล Array เป็นแผ่นงาน Worksheet
+  const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+  
+  // 3. สร้างเล่ม Workbook ใหม่
+  const workbook = XLSX.utils.book_new();
+  
+  // 4. นำแผ่นงานไปใส่ในเล่ม Workbook (แยกบรรทัดเพื่อป้องกันค่าส่งกลับเป็น undefined)
+  XLSX.utils.book_append_sheet(workbook, worksheet, "เป้าหมาย");
+  
+  // 5. สั่งดาวน์โหลดไฟล์ Excel ออกมายังเครื่องผู้ใช้งาน
+  XLSX.writeFile(workbook, "ทะเบียนกลุ่มเป้าหมายประชากร_Smart_NCD_Care.xlsx"); 
+}
 
 function executePrintTargetMgPdf() { 
   const tbody = document.getElementById('targetMgTableBody');
