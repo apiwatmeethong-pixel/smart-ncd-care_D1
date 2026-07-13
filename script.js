@@ -10,11 +10,13 @@ let masterVhvPerformanceList = [];
 let masterTargetMgList = [];
 let filteredTargetMgList = [];
 let masterReportList = [];
+let masterLogList = []; // ทะเบียนคลังเก็บ Audit Log
 
 let tableCurrentPage = 1;
 let perfCurrentPage = 1;
 let tgtMgCurrentPage = 1;
 let reportCurrentPage = 1;
+let logsCurrentPage = 1; // หน้าปัจจุบันของ Log
 
 const rowsPerPageLimit = 10;
 let failedLoginAttemptsCount = 0;
@@ -101,6 +103,7 @@ function changeViewWindow(targetView) {
   else if (targetView === 'mgtgt') { fetchManagementTargetsFromServer(); }
   else if (targetView === 'mgusr') { fetchUserAccountsFromServer(); } 
   else if (targetView === 'report') { fetchScreeningReportDataFromServer(); }
+  else if (targetView === 'logs') { fetchLogDataFromServer(); } // เรียกโหลดประวัติระบบ
 }
 
 async function executeLogin(e) {
@@ -170,6 +173,7 @@ function shiftTablePage(num) { const maxPage = Math.ceil(displayFilteredDataset.
 function shiftPerfPage(num) { const maxPage = Math.ceil(masterVhvPerformanceList.length / rowsPerPageLimit) || 1; perfCurrentPage = Math.max(1, Math.min(num, maxPage)); renderVhvPerformanceTable(); }
 function shiftTgtMgPage(num) { const maxPage = Math.ceil(filteredTargetMgList.length / rowsPerPageLimit) || 1; tgtMgCurrentPage = Math.max(1, Math.min(num, maxPage)); renderTargetMgTable(); }
 function shiftReportPage(num) { const maxPage = Math.ceil(masterReportList.length / rowsPerPageLimit) || 1; reportCurrentPage = Math.max(1, Math.min(num, maxPage)); renderReportTable(); }
+function shiftLogsPage(num) { const maxPage = Math.ceil(masterLogList.length / rowsPerPageLimit) || 1; logsCurrentPage = Math.max(1, Math.min(num, maxPage)); renderLogTable(); }
 
 async function fetchDashboardCountsFromServer() {
   try {
@@ -900,8 +904,4 @@ async function executeClearTargetDatabaseAction() {
         /* 🛡️ [PDPA Audit Log] บันทึกการสั่งทำลายล้างข้อมูลทะเบียนรายชื่อฐานราก */
         await insertAuditLog('CLEAR_ALL_TARGETS', 'data', 'ALL_RECORDS', 'สั่งล้างรายชื่อประชากรเป้าหมายทั้งหมดออกจากตารางข้อมูลหลัก data');
 
-        Swal.fire({ icon: 'success', title: 'ล้างข้อมูลเป้าหมายสำเร็จ', text: 'รายชื่อประชากรในตาราง data ถูกเคลียร์ลบเป็นช่องว่างคลีน 100% แล้วครับ' });
-      } catch (err) { Swal.fire({ icon: 'error', title: 'ทำรายการไม่สำเร็จ', text: err.message }); } finally { toggleLoaderDisplay(false); }
-    }
-  });
-}
+        Swal.fire({ icon: 'success', title: 'ล้างข้อมูลเป้าหมายสำเร็จ', text: 'รายชื่อประชากรในตาราง data ถูกเคลียร์ลบเป็นช่องว่างคลีน 100%
