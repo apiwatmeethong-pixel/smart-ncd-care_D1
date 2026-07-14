@@ -293,15 +293,29 @@ function openScreeningFormWindow(pid) {
   safetySetTextContent('label_old_weight', `(ค่าตรวจเดิม: ${citizen.old_weight} กก.)`); safetySetTextContent('label_old_height', `(ค่าตรวจเดิม: ${citizen.old_height} ซม.)`); safetySetTextContent('label_old_waist', `(ค่าตรวจเดิม: ${citizen.old_waist} ซม.)`);
   const inWeightField = document.getElementById('in_weight'); const inHeightField = document.getElementById('in_height'); const inWaistField = document.getElementById('in_waist');
   if (inWeightField) inWeightField.placeholder = "0.0"; if (inWaistField) inWaistField.placeholder = "0.0"; if (inHeightField) inHeightField.placeholder = "0.0";
+  
+  // [แก้ปัญหาบั๊กปุ่มค้าง] เคลียร์ค่าตัวเลือกปุ่มกดทั้งหมดให้ว่างเปล่า 100% ก่อนโหลดข้อมูลใหม่เข้าฟอร์ม
+  ['sm_yes', 'sm_no', 'alc_yes', 'alc_no', 'ex_ok', 'ex_low'].forEach(id => { const el = document.getElementById(id); if (el) el.checked = false; });
+
   if (citizen.screen_id && citizen.screen_id !== "") {
     safetySetInputValue('form_record_id', citizen.screen_id); safetySetInputValue('in_weight', citizen.screen_weight); safetySetInputValue('in_height', citizen.screen_height); safetySetInputValue('in_waist', citizen.screen_waist); safetySetInputValue('in_sbp', citizen.screen_sbp); safetySetInputValue('in_dbp', citizen.screen_dbp); safetySetInputValue('in_bsl', citizen.screen_bsl);
     
-    // [แก้ไขบั๊กแล้ว] เปลี่ยนมาเช็กคำว่า "ไม่..." เพื่อแก้ปัญหาการทับซ้อนของคำ
-    const sInput = document.getElementById(citizen.screen_smoking.includes("ไม่สูบ") ? 'sm_no' : 'sm_yes'); if (sInput) sInput.checked = true;
-    const aInput = document.getElementById(citizen.screen_alcohol.includes("ไม่ดื่ม") ? 'alc_no' : 'alc_yes'); if (aInput) aInput.checked = true;
-    const eInput = document.getElementById(citizen.screen_exercise.includes("ไม่เพียงพอ") ? 'ex_low' : 'ex_ok'); if (eInput) eInput.checked = true;
+    // ตั้งค่าปุ่มใหม่แบบแม่นยำทีละตัวเลือก
+    if (citizen.screen_smoking.includes("ไม่สูบ")) { if(document.getElementById('sm_no')) document.getElementById('sm_no').checked = true; } 
+    else { if(document.getElementById('sm_yes')) document.getElementById('sm_yes').checked = true; }
+
+    if (citizen.screen_alcohol.includes("ไม่ดื่ม")) { if(document.getElementById('alc_no')) document.getElementById('alc_no').checked = true; } 
+    else { if(document.getElementById('alc_yes')) document.getElementById('alc_yes').checked = true; }
+
+    if (citizen.screen_exercise.includes("ไม่เพียงพอ")) { if(document.getElementById('ex_low')) document.getElementById('ex_low').checked = true; } 
+    else { if(document.getElementById('ex_ok')) document.getElementById('ex_ok').checked = true; }
   } else { 
     safetySetInputValue('form_record_id', ""); safetySetInputValue('in_weight', ""); safetySetInputValue('in_waist', ""); safetySetInputValue('in_height', citizen.old_height || ""); 
+    
+    // ตั้งค่า Default สำหรับฟอร์มตรวจใหม่
+    if(document.getElementById('sm_no')) document.getElementById('sm_no').checked = true;
+    if(document.getElementById('alc_no')) document.getElementById('alc_no').checked = true;
+    if(document.getElementById('ex_ok')) document.getElementById('ex_ok').checked = true;
   }
   toggleBehaviorFreqPanel('smoke'); toggleBehaviorFreqPanel('alc'); toggleBehaviorFreqPanel('ex');
   attachRealtimeClinicalCalculationListeners(); runClinicalEvaluationEngine();
@@ -311,6 +325,24 @@ function openScreeningFormWindow(pid) {
 function attachRealtimeClinicalCalculationListeners() {
   document.querySelectorAll('.calc-hook').forEach(el => { el.removeEventListener('input', runClinicalEvaluationEngine); el.addEventListener('input', runClinicalEvaluationEngine); });
   document.querySelectorAll('input[type="radio"]').forEach(el => { el.removeEventListener('change', runClinicalEvaluationEngine); el.addEventListener('change', runClinicalEvaluationEngine); });
+
+  // [สร้างลอจิกบังคับปุ่ม] แก้ปัญหา HTML ขาด Name Attribute ทำให้กดปุ่มแล้วค้าง 
+  const forceExclusive = (id1, id2, panelId) => {
+    const btn1 = document.getElementById(id1);
+    const btn2 = document.getElementById(id2);
+    const panel = document.getElementById(panelId);
+    if (btn1 && btn2) {
+      btn1.addEventListener('change', function() { 
+        if(this.checked) { btn2.checked = false; if(panel) panel.classList.remove('d-none'); } 
+      });
+      btn2.addEventListener('change', function() { 
+        if(this.checked) { btn1.checked = false; if(panel) panel.classList.add('d-none'); } 
+      });
+    }
+  };
+  forceExclusive('sm_yes', 'sm_no', 'panel_freq_smoke');
+  forceExclusive('alc_yes', 'alc_no', 'panel_freq_alc');
+  forceExclusive('ex_low', 'ex_ok', 'panel_freq_ex'); // low คือไม่เพียงพอโชว์พาเนล, ok คือเพียงพอซ่อนพาเนล
 }
 
 function runClinicalEvaluationEngine() {
@@ -397,16 +429,17 @@ async function submitFormScreeningData(e) {
   const dbpRaw = document.getElementById('in_dbp').value; 
   const bslRaw = document.getElementById('in_bsl').value;
   
-  // เช็กว่ากรอกครบทุกช่องหรือไม่
+  // ตรวจจับกรณีปล่อยช่องว่าง
   if (wRaw === "" || hRaw === "" || waistRaw === "" || sbpRaw === "" || dbpRaw === "" || bslRaw === "") { 
-    Swal.fire({ icon: 'error', title: 'ไม่สามารถบันทึกข้อมูลได้', text: 'ขออภัยด้วยครับ บังคับว่าหากกรอกข้อมูลไม่ครบทุกช่องสัญญาณชีพ ระบบจะไม่ยินยอมให้ทำการบันทึกข้อมูลเด็ดขาด โปรดตรวจทานช่องที่ว่างอยู่ครับ!' }); 
+    Swal.fire({ icon: 'error', title: 'ไม่สามารถบันทึกข้อมูลได้', text: 'กรุณากรอกข้อมูลสัญญาณชีพให้ครบถ้วนก่อนทำการบันทึกครับ!' }); 
     if (form) form.classList.add('was-validated'); 
     return; 
   }
   
-  // [แก้ไขเพิ่มแล้ว] ดักจับน้ำหนักที่ต่ำกว่า 20 กิโลกรัม
-  if (parseFloat(wRaw) < 20) {
-    Swal.fire({ icon: 'warning', title: 'ค่าน้ำหนักผิดปกติ', text: 'ค่าน้ำหนักที่ระบุน้อยกว่า 20 กก. โปรดตรวจสอบการกรอกจุดทศนิยมหรือข้อมูลให้ถูกต้องอีกครั้งครับ' });
+  // [แก้ไข] ดักจับน้ำหนัก < 20 ทันที (วางไว้จุดนี้ระบบจะเตือนทันทีที่กดบันทึก)
+  const weightVal = parseFloat(wRaw);
+  if (isNaN(weightVal) || weightVal < 20 || weightVal > 300) {
+    Swal.fire({ icon: 'warning', title: 'ค่าน้ำหนักผิดปกติ', text: 'ระบบตรวจพบน้ำหนักต่ำกว่า 20 กก. (หรือเกิน 300 กก.) โปรดตรวจสอบจุดทศนิยมหรือความถูกต้องอีกครั้งครับ' });
     return;
   }
 
@@ -420,15 +453,24 @@ async function submitFormScreeningData(e) {
   const citizenIdVal = document.getElementById('form_pid').value; 
   if (!recId || recId === "") { recId = `SCR-${citizenIdVal}-${new Date().getTime()}`; }
   
+  // [แก้ไข] ตัดสินใจเลือกค่าตัวเลือกพฤติกรรมอย่างเด็ดขาดตามปุ่มบนหน้าจอ
+  const isSmoker = document.getElementById('sm_yes') && document.getElementById('sm_yes').checked;
+  const isDrinker = document.getElementById('alc_yes') && document.getElementById('alc_yes').checked;
+  const isExLow = document.getElementById('ex_low') && document.getElementById('ex_low').checked;
+
+  const finalSmoking = isSmoker ? `สูบ (${document.getElementById('sel_freq_smoke').value})` : "ไม่สูบ";
+  const finalAlcohol = isDrinker ? `ดื่ม (${document.getElementById('sel_freq_alc').value})` : "ไม่ดื่ม";
+  const finalExercise = isExLow ? `ไม่เพียงพอ (${document.getElementById('sel_freq_ex').value})` : "เพียงพอ";
+
   const payload = {
-    id: recId, citizen_id: parseInt(citizenIdVal), name: document.getElementById('form_name').value, age: parseInt(document.getElementById('form_age').value), gender: document.getElementById('form_gender').value, weight: parseFloat(wRaw), height: parseFloat(hRaw), bmi: parseFloat(document.getElementById('rt-bmi').innerText) || 0, waist: parseFloat(waistRaw), bp_sys: sbp, bp_dia: dbp, bp_status: document.getElementById('rt-bp').innerText, fbs: bsl, fbs_status: document.getElementById('rt-bsl').innerText,
-    smoking: document.getElementById('sm_yes').checked ? `สูบ (${document.getElementById('sel_freq_smoke').value})` : "ไม่สูบ", alcohol: document.getElementById('alc_yes').checked ? `ดื่ม (${document.getElementById('sel_freq_alc').value})` : "ไม่ดื่ม", exercise: document.getElementById('ex_ok').checked ? "เพียงพอ" : `ไม่เพียงพอ (${document.getElementById('sel_freq_ex').value})`, cvd_risk: document.getElementById('rt-cvd').innerText, ncd_status: document.getElementById('rt-status-text').innerText, date: new Date().toLocaleDateString('th-TH'), operator: activeVhvSession.name
+    id: recId, citizen_id: parseInt(citizenIdVal), name: document.getElementById('form_name').value, age: parseInt(document.getElementById('form_age').value), gender: document.getElementById('form_gender').value, weight: weightVal, height: parseFloat(hRaw), bmi: parseFloat(document.getElementById('rt-bmi').innerText) || 0, waist: parseFloat(waistRaw), bp_sys: sbp, bp_dia: dbp, bp_status: document.getElementById('rt-bp').innerText, fbs: bsl, fbs_status: document.getElementById('rt-bsl').innerText,
+    smoking: finalSmoking, alcohol: finalAlcohol, exercise: finalExercise, cvd_risk: document.getElementById('rt-cvd').innerText, ncd_status: document.getElementById('rt-status-text').innerText, date: new Date().toLocaleDateString('th-TH'), operator: activeVhvSession.name
   };
   
   toggleLoaderDisplay(true); 
   try {
     const { error: screenErr } = await db.from('screening').upsert([payload]); if (screenErr) throw screenErr;
-    await db.from('data').update({ screening_date: new Date().toISOString().split('T')[0], weight: parseFloat(wRaw), height: parseFloat(hRaw), waist: parseFloat(waistRaw), sbp: sbp, dbp: dbp, bsl: bsl, interpretation_ht: document.getElementById('rt-bp').innerText, interpretation_dm: document.getElementById('rt-bsl').innerText }).eq('pid', citizenIdVal);
+    await db.from('data').update({ screening_date: new Date().toISOString().split('T')[0], weight: weightVal, height: parseFloat(hRaw), waist: parseFloat(waistRaw), sbp: sbp, dbp: dbp, bsl: bsl, interpretation_ht: document.getElementById('rt-bp').innerText, interpretation_dm: document.getElementById('rt-bsl').innerText }).eq('pid', citizenIdVal);
     
     await insertAuditLog('UPSERT_SCREENING', 'screening', citizenIdVal, { name: payload.name, ncd_status: payload.ncd_status });
 
