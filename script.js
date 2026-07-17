@@ -399,30 +399,37 @@ function openScreeningFormWindow(pid) {
   const inWeightField = document.getElementById('in_weight'); const inHeightField = document.getElementById('in_height'); const inWaistField = document.getElementById('in_waist');
   if (inWeightField) inWeightField.placeholder = "0.0"; if (inWaistField) inWaistField.placeholder = "0.0"; if (inHeightField) inHeightField.placeholder = "0.0";
   
-  // [แก้ปัญหาบั๊กปุ่มค้าง] เคลียร์ค่าตัวเลือกปุ่มกดทั้งหมดให้ว่างเปล่า 100% ก่อนโหลดข้อมูลใหม่เข้าฟอร์ม
-  ['sm_yes', 'sm_no', 'alc_yes', 'alc_no', 'ex_ok', 'ex_low'].forEach(id => { const el = document.getElementById(id); if (el) el.checked = false; });
-
+  // [วิธีแก้ไขใหม่] ไม่ต้องเคลียร์ค่าปุ่มเป็น false ทั้งหมดแล้วปล่อยให้มันตั้งค่าตามเงื่อนไขอย่างเดียว
   if (citizen.screen_id && citizen.screen_id !== "") {
     safetySetInputValue('form_record_id', citizen.screen_id); safetySetInputValue('in_weight', citizen.screen_weight); safetySetInputValue('in_height', citizen.screen_height); safetySetInputValue('in_waist', citizen.screen_waist); safetySetInputValue('in_sbp', citizen.screen_sbp); safetySetInputValue('in_dbp', citizen.screen_dbp); safetySetInputValue('in_bsl', citizen.screen_bsl);
     
-    // ตั้งค่าปุ่มใหม่แบบแม่นยำทีละตัวเลือก
-    if (citizen.screen_smoking.includes("ไม่สูบ")) { if(document.getElementById('sm_no')) document.getElementById('sm_no').checked = true; } 
-    else { if(document.getElementById('sm_yes')) document.getElementById('sm_yes').checked = true; }
+    // ตั้งค่าปุ่มตามข้อมูลในฐานระบบ พร้อมสั่ง trigger ให้ซ่อนโชว์กล่องเมนูแบบเนียนๆ
+    if (citizen.screen_smoking.includes("ไม่สูบ")) { 
+      if(document.getElementById('sm_no')) { document.getElementById('sm_no').checked = true; document.getElementById('sm_no').dispatchEvent(new Event('change')); }
+    } else { 
+      if(document.getElementById('sm_yes')) { document.getElementById('sm_yes').checked = true; document.getElementById('sm_yes').dispatchEvent(new Event('change')); }
+    }
 
-    if (citizen.screen_alcohol.includes("ไม่ดื่ม")) { if(document.getElementById('alc_no')) document.getElementById('alc_no').checked = true; } 
-    else { if(document.getElementById('alc_yes')) document.getElementById('alc_yes').checked = true; }
+    if (citizen.screen_alcohol.includes("ไม่ดื่ม")) { 
+      if(document.getElementById('alc_no')) { document.getElementById('alc_no').checked = true; document.getElementById('alc_no').dispatchEvent(new Event('change')); } 
+    } else { 
+      if(document.getElementById('alc_yes')) { document.getElementById('alc_yes').checked = true; document.getElementById('alc_yes').dispatchEvent(new Event('change')); }
+    }
 
-    if (citizen.screen_exercise.includes("ไม่เพียงพอ")) { if(document.getElementById('ex_low')) document.getElementById('ex_low').checked = true; } 
-    else { if(document.getElementById('ex_ok')) document.getElementById('ex_ok').checked = true; }
+    if (citizen.screen_exercise.includes("ไม่เพียงพอ")) { 
+      if(document.getElementById('ex_low')) { document.getElementById('ex_low').checked = true; document.getElementById('ex_low').dispatchEvent(new Event('change')); } 
+    } else { 
+      if(document.getElementById('ex_ok')) { document.getElementById('ex_ok').checked = true; document.getElementById('ex_ok').dispatchEvent(new Event('change')); }
+    }
   } else { 
     safetySetInputValue('form_record_id', ""); safetySetInputValue('in_weight', ""); safetySetInputValue('in_waist', ""); safetySetInputValue('in_height', citizen.old_height || ""); 
     
-    // ตั้งค่า Default สำหรับฟอร์มตรวจใหม่
-    if(document.getElementById('sm_no')) document.getElementById('sm_no').checked = true;
-    if(document.getElementById('alc_no')) document.getElementById('alc_no').checked = true;
-    if(document.getElementById('ex_ok')) document.getElementById('ex_ok').checked = true;
+    // ตั้งค่า Default สำหรับฟอร์มตรวจใหม่ 
+    if(document.getElementById('sm_no')) { document.getElementById('sm_no').checked = true; document.getElementById('sm_no').dispatchEvent(new Event('change')); }
+    if(document.getElementById('alc_no')) { document.getElementById('alc_no').checked = true; document.getElementById('alc_no').dispatchEvent(new Event('change')); }
+    if(document.getElementById('ex_ok')) { document.getElementById('ex_ok').checked = true; document.getElementById('ex_ok').dispatchEvent(new Event('change')); }
   }
-  toggleBehaviorFreqPanel('smoke'); toggleBehaviorFreqPanel('alc'); toggleBehaviorFreqPanel('ex');
+  
   attachRealtimeClinicalCalculationListeners(); runClinicalEvaluationEngine();
   setTimeout(function() { window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; }, 80);
 }
