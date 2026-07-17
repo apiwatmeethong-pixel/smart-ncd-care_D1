@@ -25,6 +25,7 @@ let bootstrapUserModalInstance;
 
 let tableSearchDebounceTimeout;
 let targetMgSearchDebounceTimeout;
+let dashChartInstance = null; // ตัวแปรคุมกราฟ Chart.js
 
 /* [Audit Log System] ฟังก์ชันส่วนกลางสำหรับบันทึกประวัติการเข้าถึงและการปรับปรุงแก้ไขข้อมูลตามหลัก PDPA */
 async function insertAuditLog(action, tableName, recordId, details = '') {
@@ -189,30 +190,134 @@ async function fetchDashboardCountsFromServer() {
       }
       return q; 
     });
-    const assignedCount = dataRows ? dataRows.length : 0; const assignedPids = dataRows ? dataRows.map(r => r.pid.toString()) : [];
+    
+    const assignedCount = dataRows ? dataRows.length : 0; 
+    const assignedPids = dataRows ? dataRows.map(r => r.pid.toString()) : [];
     const screenRows = await supabaseSelectAll('screening', '*');
     
     let filteredScreenings = screenRows || []; 
     if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') { 
       filteredScreenings = filteredScreenings.filter(s => assignedPids.includes(s.citizen_id.toString())); 
     }
+    
     let normalCount = 0; let riskCount = 0; let alertCount = 0; let totalSmokerCount = 0; let totalDrinkerCount = 0;
-    const tbody = document.getElementById('dashboardSummaryTableBody'); if (tbody) tbody.innerHTML = '';
+    
     filteredScreenings.forEach(item => {
       if (item.smoking && item.smoking.includes('สูบ') && !item.smoking.includes('ไม่สูบ')) totalSmokerCount++;
       if (item.alcohol && item.alcohol.includes('ดื่ม') && !item.alcohol.includes('ไม่ดื่ม')) totalDrinkerCount++;
       if (item.ncd_status.includes('แดง') || item.ncd_status.includes('สงสัย')) alertCount++;
       else if (item.ncd_status.includes('เหลือง') || item.ncd_status.includes('เสี่ยง')) riskCount++;
       else if (item.ncd_status.includes('เขียว') || item.ncd_status.includes('ปกติ')) normalCount++;
-      if (tbody) {
-        let bClass = "bg-secondary"; if (item.ncd_status.includes('เขียว') || item.ncd_status.includes('ปกติ')) bClass = "bg-success"; else if (item.ncd_status.includes('เหลือง') || item.ncd_status.includes('เสี่ยง')) bClass = "bg-warning text-dark"; else if (item.ncd_status.includes('แดง') || item.ncd_status.includes('สงสัย')) bClass = "bg-danger";
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td data-label="ชื่อ - นามสกุล">${item.name}</td><td data-label="สรุปสถานะกลุ่ม"><span class="badge ${bClass} fs-6">${item.ncd_status}</span></td><td data-label="แปลดัชนีมวลกาย" class="text-primary">${item.bmi || '-'}</td><td data-label="แปลความดัน (HT)">${item.bp_status}</td><td data-label="แปลน้ำตาล (DM)">${item.fbs_status}</td><td data-label="ประเมินหัวใจ (CVD)">${item.cvd_risk}</td>`; tbody.appendChild(tr);
-      }
     });
-    if (tbody && filteredScreenings.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">ยังไม่มีข้อมูลผลการคัดกรองเสร็จสิ้น</td></tr>'; }
-    safetySetTextContent('stat-total-count', assignedCount); safetySetTextContent('stat-normal-count', normalCount); safetySetTextContent('stat-risk-count', riskCount); safetySetTextContent('stat-alert-count', alertCount); safetySetTextContent('stat-screened-count', filteredScreenings.length); safetySetTextContent('stat-smoker-count', totalSmokerCount); safetySetTextContent('stat-drinker-count', totalDrinkerCount);
-    let calculatedProgressPercent = ((filteredScreenings.length / (assignedCount || 1)) * 100).toFixed(1); safetySetTextContent('stat-progress-percent', calculatedProgressPercent + '%');
+
+    // อัปเดตข้อมูลการ์ดสรุปยอดด้านบน (Top Cards) คงรูปแบบเดิม
+    safetySetTextContent('stat-total-count', assignedCount); 
+    safetySetTextContent('stat-normal-count', normalCount); 
+    safetySetTextContent('stat-risk-count', riskCount); 
+    safetySetTextContent('stat-alert-count', alertCount); 
+    safetySetTextContent('stat-screened-count', filteredScreenings.length); 
+    safetySetTextContent('stat-smoker-count', totalSmokerCount); 
+    safetySetTextContent('stat-drinker-count', totalDrinkerCount);
+    let calculatedProgressPercent = ((filteredScreenings.length / (assignedCount || 1)) * 100).toFixed(1); 
+    safetySetTextContent('stat-progress-percent', calculatedProgressPercent + '%');
+
+    // =========================================================================
+    // [ลอจิกใหม่] สร้างกราฟและตารางความคืบหน้ารายชุมชน (เฉพาะ Admin / Staff)
+    // =========================================================================
+    if (activeVhvSession.role === 'admin' || activeVhvSession.role === 'staff') {
+      const commStats = {};
+      
+      // 1. จัดกลุ่มเป้าหมายประชากรตามชื่อชุมชน
+      dataRows.forEach(r => {
+        let rawComm = r.community ? r.community.trim() : "";
+        let commName = rawComm !== "" ? (rawComm.startsWith("ชุมชน") ? rawComm : `ชุมชน${rawComm}`) : "ไม่ได้ระบุชุมชน";
+        if (!commStats[commName]) { commStats[commName] = { target: 0, done: 0 }; }
+        commStats[commName].target++;
+      });
+
+      // 2. ตรวจสอบผู้ที่ได้รับการคัดกรองแล้วในแต่ละชุมชน
+      const screenedPidsSet = new Set(screenRows.map(s => s.citizen_id.toString()));
+      dataRows.forEach(r => {
+        if (screenedPidsSet.has(r.pid.toString())) {
+          let rawComm = r.community ? r.community.trim() : "";
+          let commName = rawComm !== "" ? (rawComm.startsWith("ชุมชน") ? rawComm : `ชุมชน${rawComm}`) : "ไม่ได้ระบุชุมชน";
+          commStats[commName].done++;
+        }
+      });
+
+      // 3. เตรียมข้อมูลสำหรับตารางและกราฟ
+      const chartLabels = [];
+      const chartData = [];
+      const tbody = document.getElementById('communityProgressTableBody'); 
+      if (tbody) tbody.innerHTML = '';
+
+      // จัดเรียงชื่อชุมชนตามตัวอักษร ก-ฮ
+      const sortedCommunities = Object.keys(commStats).sort();
+      
+      sortedCommunities.forEach(comm => {
+        const target = commStats[comm].target;
+        const done = commStats[comm].done;
+        const pending = target - done;
+        const percent = target > 0 ? ((done / target) * 100).toFixed(1) : "0.0";
+
+        chartLabels.push(comm);
+        chartData.push(percent);
+
+        // นำข้อมูลลงตาราง
+        if (tbody) {
+          tbody.innerHTML += `
+            <tr>
+              <td data-label="ชื่อชุมชน" class="fw-bold text-dark">${comm}</td>
+              <td data-label="เป้าหมาย (คน)" class="text-center">${target}</td>
+              <td data-label="คัดกรองแล้ว (คน)" class="text-center text-success fw-bold">${done}</td>
+              <td data-label="คงเหลือ (คน)" class="text-center text-danger">${pending}</td>
+              <td data-label="ความคืบหน้า (%)" class="text-center">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="progress flex-grow-1" style="height:10px;">
+                    <div class="progress-bar bg-primary" style="width:${percent}%"></div>
+                  </div>
+                  <span class="small fw-bold">${percent}%</span>
+                </div>
+              </td>
+            </tr>
+          `;
+        }
+      });
+
+      // 4. สั่งวาดกราฟแท่งด้วย Chart.js
+      const ctx = document.getElementById('communityProgressChart');
+      if (ctx) {
+        if (dashChartInstance) { dashChartInstance.destroy(); } // เคลียร์กราฟเก่าก่อนวาดใหม่
+        dashChartInstance = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: chartLabels,
+            datasets: [{
+              label: 'ความคืบหน้า (%)',
+              data: chartData,
+              backgroundColor: 'rgba(14, 165, 233, 0.8)', // สีฟ้าน้ำทะเล
+              borderColor: 'rgb(14, 165, 233)',
+              borderWidth: 1,
+              borderRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false } // ซ่อนป้ายกำกับด้านบนกราฟ
+            },
+            scales: {
+              y: { 
+                beginAtZero: true, 
+                max: 100, 
+                ticks: { callback: function(value) { return value + '%' } } 
+              }
+            }
+          }
+        });
+      }
+    }
   } catch (err) { console.error(err); }
 }
 
