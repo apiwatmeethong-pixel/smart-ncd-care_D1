@@ -177,8 +177,13 @@ function shiftReportPage(num) { const maxPage = Math.ceil(masterReportList.lengt
 function shiftLogsPage(num) { const maxPage = Math.ceil(masterLogList.length / rowsPerPageLimit) || 1; logsCurrentPage = Math.max(1, Math.min(num, maxPage)); renderLogTable(); }
 
 async function fetchDashboardCountsFromServer() {
+  // ย้ายการประกาศตัวแปรมาไว้ที่นี่ เพื่อให้ใช้งานได้ทุกจุดในฟังก์ชัน
+  let filteredScreenings = [];
+  let dataRows = [];
+  let screenRows = [];
+
   try {
-    const dataRows = await supabaseSelectAll('data', 'pid, vhv_pid, moo, community', (q) => { 
+    dataRows = await supabaseSelectAll('data', 'pid, vhv_pid, moo, community', (q) => { 
       if (activeVhvSession.role === 'user') { 
         return q.eq('vhv_pid', activeVhvSession.vhvId);
       } else if (activeVhvSession.role === 'staff') {
@@ -193,10 +198,9 @@ async function fetchDashboardCountsFromServer() {
     
     const assignedCount = dataRows ? dataRows.length : 0; 
     const assignedPids = dataRows ? dataRows.map(r => r.pid.toString()) : [];
-    const screenRows = await supabaseSelectAll('screening', '*');
+    screenRows = await supabaseSelectAll('screening', '*');
     
-    // สร้างตัวแปร filteredScreenings
-    let filteredScreenings = screenRows || []; 
+    filteredScreenings = screenRows || []; 
     if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') { 
       filteredScreenings = filteredScreenings.filter(s => assignedPids.includes(s.citizen_id.toString())); 
     }
@@ -211,7 +215,7 @@ async function fetchDashboardCountsFromServer() {
       else if (item.ncd_status.includes('เขียว') || item.ncd_status.includes('ปกติ')) normalCount++;
     });
 
-    // อัปเดตข้อมูลการ์ดสรุปยอดด้านบน (Top Cards)
+    // อัปเดตข้อมูลการ์ดสรุปยอดด้านบน
     safetySetTextContent('stat-total-count', assignedCount); 
     safetySetTextContent('stat-normal-count', normalCount); 
     safetySetTextContent('stat-risk-count', riskCount); 
@@ -222,12 +226,9 @@ async function fetchDashboardCountsFromServer() {
     let calculatedProgressPercent = ((filteredScreenings.length / (assignedCount || 1)) * 100).toFixed(1); 
     safetySetTextContent('stat-progress-percent', calculatedProgressPercent + '%');
 
-    // =========================================================================
-    // [ลอจิก 1] สร้างกราฟและตารางความคืบหน้ารายชุมชน (เฉพาะ Admin / Staff)
-    // =========================================================================
+    // ส่วนที่ 1: กราฟและตารางสรุปรายชุมชน (Admin/Staff)
     if (activeVhvSession.role === 'admin' || activeVhvSession.role === 'staff') {
       const commStats = {};
-      
       dataRows.forEach(r => {
         let rawComm = r.community ? r.community.trim() : "";
         let commName = rawComm !== "" ? (rawComm.startsWith("ชุมชน") ? rawComm : `ชุมชน${rawComm}`) : "ไม่ได้ระบุชุมชน";
@@ -240,113 +241,49 @@ async function fetchDashboardCountsFromServer() {
         if (screenedPidsSet.has(r.pid.toString())) {
           let rawComm = r.community ? r.community.trim() : "";
           let commName = rawComm !== "" ? (rawComm.startsWith("ชุมชน") ? rawComm : `ชุมชน${rawComm}`) : "ไม่ได้ระบุชุมชน";
-          commStats[commName].done++;
+          if(commStats[commName]) commStats[commName].done++;
         }
       });
 
-      const chartLabels = [];
-      const chartData = [];
+      const chartLabels = [], chartData = [];
       const tbody = document.getElementById('communityProgressTableBody'); 
       if (tbody) tbody.innerHTML = '';
 
-      const sortedCommunities = Object.keys(commStats).sort();
-      
-      sortedCommunities.forEach(comm => {
-        const target = commStats[comm].target;
-        const done = commStats[comm].done;
-        const pending = target - done;
+      Object.keys(commStats).sort().forEach(comm => {
+        const { target, done } = commStats[comm];
         const percent = target > 0 ? ((done / target) * 100).toFixed(1) : "0.0";
-
-        chartLabels.push(comm);
-        chartData.push(percent);
-
+        chartLabels.push(comm); chartData.push(percent);
         if (tbody) {
-          tbody.innerHTML += `
-            <tr>
-              <td data-label="ชื่อชุมชน" class="fw-bold text-dark">${comm}</td>
-              <td data-label="เป้าหมาย (คน)" class="text-center">${target}</td>
-              <td data-label="คัดกรองแล้ว (คน)" class="text-center text-success fw-bold">${done}</td>
-              <td data-label="คงเหลือ (คน)" class="text-center text-danger">${pending}</td>
-              <td data-label="ความคืบหน้า (%)" class="text-center">
-                <div class="d-flex align-items-center gap-2">
-                  <div class="progress flex-grow-1" style="height:10px;">
-                    <div class="progress-bar bg-primary" style="width:${percent}%"></div>
-                  </div>
-                  <span class="small fw-bold">${percent}%</span>
-                </div>
-              </td>
-            </tr>
-          `;
+          tbody.innerHTML += `<tr><td class="fw-bold">${comm}</td><td class="text-center">${target}</td><td class="text-center text-success">${done}</td><td class="text-center text-danger">${target - done}</td><td class="text-center">${percent}%</td></tr>`;
         }
       });
 
       const ctx = document.getElementById('communityProgressChart');
       if (ctx) {
-        if (dashChartInstance) { dashChartInstance.destroy(); } 
-        dashChartInstance = new Chart(ctx, {
-          type: 'bar',
-          data: {
-            labels: chartLabels,
-            datasets: [{
-              label: 'ความคืบหน้า (%)',
-              data: chartData,
-              backgroundColor: 'rgba(14, 165, 233, 0.8)', 
-              borderColor: 'rgb(14, 165, 233)',
-              borderWidth: 1,
-              borderRadius: 4
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: {
-              y: { beginAtZero: true, max: 100, ticks: { callback: function(value) { return value + '%' } } }
-            }
-          }
-        });
+        if (dashChartInstance) dashChartInstance.destroy(); 
+        dashChartInstance = new Chart(ctx, { type: 'bar', data: { labels: chartLabels, datasets: [{ data: chartData, backgroundColor: 'rgba(14, 165, 233, 0.8)' }] }, options: { responsive: true, maintainAspectRatio: false } });
       }
     }
 
-    // =========================================================================
-    // [ลอจิก 2] แสดงตารางสรุปผลรายบุคคล เฉพาะระดับ User บนหน้าแดชบอร์ด
-    // =========================================================================
+    // ส่วนที่ 2: ตารางสรุปรายบุคคล (User)
     const userTableContainer = document.getElementById('userDashboardTableContainer');
     if (activeVhvSession.role === 'user') {
       if(userTableContainer) userTableContainer.classList.remove('d-none');
       const tbody = document.getElementById('dashboardSummaryTableBody');
       if (tbody) {
         tbody.innerHTML = '';
-        if (filteredScreenings.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">ยังไม่มีข้อมูลผลการคัดกรองเสร็จสิ้น</td></tr>';
-        } else {
-          filteredScreenings.forEach(item => {
-            let bClass = "bg-secondary"; 
-            if (item.ncd_status.includes('เขียว') || item.ncd_status.includes('ปกติ')) bClass = "bg-success"; 
-            else if (item.ncd_status.includes('เหลือง') || item.ncd_status.includes('เสี่ยง')) bClass = "bg-warning text-dark"; 
-            else if (item.ncd_status.includes('แดง') || item.ncd_status.includes('สงสัย')) bClass = "bg-danger";
-            
-            tbody.innerHTML += `<tr>
-              <td data-label="ชื่อ - นามสกุล">${item.name}</td>
-              <td data-label="สรุปสถานะกลุ่ม"><span class="badge ${bClass} fs-6">${item.ncd_status}</span></td>
-              <td data-label="แปลดัชนีมวลกาย" class="text-primary">${item.bmi || '-'}</td>
-              <td data-label="แปลความดัน (HT)">${item.bp_status}</td>
-              <td data-label="แปลน้ำตาล (DM)">${item.fbs_status}</td>
-              <td data-label="ประเมินหัวใจ (CVD)">${item.cvd_risk}</td>
-            </tr>`;
-          });
-        }
+        filteredScreenings.forEach(item => {
+          let bClass = item.ncd_status.includes('แดง') ? "bg-danger" : (item.ncd_status.includes('เหลือง') ? "bg-warning" : "bg-success");
+          tbody.innerHTML += `<tr><td>${item.name}</td><td><span class="badge ${bClass}">${item.ncd_status}</span></td><td>${item.bmi || '-'}</td><td>${item.bp_status}</td><td>${item.fbs_status}</td><td>${item.cvd_risk}</td></tr>`;
+        });
       }
     } else {
-      // ซ่อนตารางถ้าเป็น Admin หรือ Staff
       if(userTableContainer) userTableContainer.classList.add('d-none');
     }
-
   } catch (err) { 
-    console.error(err); 
+    console.error("เกิดข้อผิดพลาดในการโหลด Dashboard:", err); 
   }
 }
-
 async function fetchPopulationListFromServer() {
   toggleLoaderDisplay(true);
   try {
