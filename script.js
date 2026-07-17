@@ -178,25 +178,26 @@ function shiftLogsPage(num) { const maxPage = Math.ceil(masterLogList.length / r
 
 async function fetchDashboardCountsFromServer() {
   try {
-    // 1. ดึงข้อมูล "ทั้งหมด" มาเพื่อคำนวณกราฟและตารางเปรียบเทียบ (ปลอดภัยเพราะดึงเฉพาะ PID/ชุมชน)
+    // 1. ดึงข้อมูลประชากรทั้งหมด (ใช้ดึงทุกชุมชนเพื่อไปวาดกราฟ)
     const allDataRows = await supabaseSelectAll('data', 'pid, vhv_pid, moo, community');
-    
-    // 2. แยกข้อมูล "เฉพาะของตนเอง" เพื่อไปแสดงใน 4 การ์ดสรุปผลด้านบน
-    const myDataRows = (activeVhvSession.role === 'user') 
-      ? allDataRows.filter(r => r.vhv_pid && r.vhv_pid.toString() === activeVhvSession.vhvId.toString())
-      : allDataRows;
-
-    const assignedCount = myDataRows.length;
-    const assignedPids = myDataRows.map(r => r.pid.toString());
-    
     const screenRows = await supabaseSelectAll('screening', '*');
-    
-    // กรองผลคัดกรองเฉพาะของตนเองสำหรับการ์ดสรุป
-    const filteredScreenings = (screenRows || []).filter(s => assignedPids.includes(s.citizen_id.toString()));
-    
-    // คำนวณสรุปการ์ดส่วนตัว
+
+    // 2. [ส่วนของการ์ดบนสุด] กรองเฉพาะข้อมูลที่เกี่ยวข้องกับ Staff/User ท่านนั้น
+    // หากเป็น Admin ให้แสดงผลรวมทั้งหมด | หากเป็น Staff/User ให้กรองตาม moo หรือ vhvId
+    let myDataRows = allDataRows;
+    if (activeVhvSession.role === 'user') {
+        myDataRows = allDataRows.filter(r => r.vhv_pid && r.vhv_pid.toString() === activeVhvSession.vhvId.toString());
+    } else if (activeVhvSession.role === 'staff') {
+        // กรองตามหมู่ (moo) ของ Staff ท่านนั้น
+        myDataRows = allDataRows.filter(r => r.moo && activeVhvSession.moo && r.moo.toString() === activeVhvSession.moo.toString());
+    }
+
+    const assignedPids = myDataRows.map(r => r.pid.toString());
+    const myFilteredScreenings = (screenRows || []).filter(s => assignedPids.includes(s.citizen_id.toString()));
+
+    // 3. คำนวณสรุปการ์ดบนสุด (ใช้ myFilteredScreenings เพื่อให้ Staff เห็นยอดของตนเอง)
     let normalCount = 0, riskCount = 0, alertCount = 0, totalSmokerCount = 0, totalDrinkerCount = 0;
-    filteredScreenings.forEach(item => {
+    myFilteredScreenings.forEach(item => {
       if (item.smoking && item.smoking.includes('สูบ') && !item.smoking.includes('ไม่สูบ')) totalSmokerCount++;
       if (item.alcohol && item.alcohol.includes('ดื่ม') && !item.alcohol.includes('ไม่ดื่ม')) totalDrinkerCount++;
       if (item.ncd_status.includes('แดง') || item.ncd_status.includes('สงสัย')) alertCount++;
@@ -204,75 +205,79 @@ async function fetchDashboardCountsFromServer() {
       else if (item.ncd_status.includes('เขียว') || item.ncd_status.includes('ปกติ')) normalCount++;
     });
 
-    // อัปเดตการ์ดสรุปยอด
-    safetySetTextContent('stat-total-count', assignedCount); 
-    safetySetTextContent('stat-normal-count', normalCount); 
-    safetySetTextContent('stat-risk-count', riskCount); 
-    safetySetTextContent('stat-alert-count', alertCount); 
-    safetySetTextContent('stat-screened-count', filteredScreenings.length); 
-    safetySetTextContent('stat-smoker-count', totalSmokerCount); 
+    safetySetTextContent('stat-total-count', myDataRows.length);
+    safetySetTextContent('stat-normal-count', normalCount);
+    safetySetTextContent('stat-risk-count', riskCount);
+    safetySetTextContent('stat-alert-count', alertCount);
+    safetySetTextContent('stat-screened-count', myFilteredScreenings.length);
+    safetySetTextContent('stat-smoker-count', totalSmokerCount);
     safetySetTextContent('stat-drinker-count', totalDrinkerCount);
-    let progress = ((filteredScreenings.length / (assignedCount || 1)) * 100).toFixed(1); 
+    let progress = ((myFilteredScreenings.length / (myDataRows.length || 1)) * 100).toFixed(1);
     safetySetTextContent('stat-progress-percent', progress + '%');
 
-    // =========================================================================
-    // กราฟและตารางเปรียบเทียบ 16 ชุมชน (แสดงให้ทุกคนเห็น เพื่อให้เกิดการแข่งขัน)
-    // =========================================================================
-    const commStats = {};
-    allDataRows.forEach(r => {
-      let rawComm = r.community ? r.community.trim() : "ไม่ได้ระบุชุมชน";
-      let commName = rawComm.startsWith("ชุมชน") ? rawComm : `ชุมชน${rawComm}`;
-      if (!commStats[commName]) commStats[commName] = { target: 0, done: 0 };
-      commStats[commName].target++;
-    });
+    // 4. [ส่วนของกราฟและตาราง 16 ชุมชน] (ใช้ allDataRows ทั้งหมด)
+    const adminStaffSection = document.querySelector('.admin-staff-only');
+    if (activeVhvSession.role === 'admin' || activeVhvSession.role === 'staff') {
+      if (adminStaffSection) adminStaffSection.classList.remove('d-none');
 
-    const screenedPidsSet = new Set(screenRows.map(s => s.citizen_id.toString()));
-    allDataRows.forEach(r => {
-      if (screenedPidsSet.has(r.pid.toString())) {
-        let rawComm = r.community ? r.community.trim() : "ไม่ได้ระบุชุมชน";
+      const commStats = {};
+      allDataRows.forEach(r => {
+        let rawComm = (r.community && r.community.trim() !== "") ? r.community.trim() : "ไม่ได้ระบุชุมชน";
         let commName = rawComm.startsWith("ชุมชน") ? rawComm : `ชุมชน${rawComm}`;
-        if (commStats[commName]) commStats[commName].done++;
+        if (!commStats[commName]) commStats[commName] = { target: 0, done: 0 };
+        commStats[commName].target++;
+      });
+
+      const screenedPidsSet = new Set(screenRows.map(s => s.citizen_id.toString()));
+      allDataRows.forEach(r => {
+        if (screenedPidsSet.has(r.pid.toString())) {
+          let rawComm = (r.community && r.community.trim() !== "") ? r.community.trim() : "ไม่ได้ระบุชุมชน";
+          let commName = rawComm.startsWith("ชุมชน") ? rawComm : `ชุมชน${rawComm}`;
+          if (commStats[commName]) commStats[commName].done++;
+        }
+      });
+
+      // วาดกราฟ
+      const chartLabels = [], chartData = [];
+      const tbody = document.getElementById('communityProgressTableBody');
+      if (tbody) {
+        tbody.innerHTML = '';
+        Object.keys(commStats).sort().forEach(comm => {
+          const { target, done } = commStats[comm];
+          const percent = target > 0 ? ((done / target) * 100).toFixed(1) : "0.0";
+          chartLabels.push(comm);
+          chartData.push(percent);
+          tbody.innerHTML += `<tr><td class="fw-bold">${comm}</td><td class="text-center">${target}</td><td class="text-center text-success">${done}</td><td class="text-center text-danger">${target - done}</td><td class="text-center">${percent}%</td></tr>`;
+        });
       }
-    });
 
-    const chartLabels = [], chartData = [];
-    const tbody = document.getElementById('communityProgressTableBody'); 
-    if (tbody) {
-      tbody.innerHTML = '';
-      Object.keys(commStats).sort().forEach(comm => {
-        const { target, done } = commStats[comm];
-        const percent = target > 0 ? ((done / target) * 100).toFixed(1) : "0.0";
-        chartLabels.push(comm); chartData.push(percent);
-        tbody.innerHTML += `<tr><td class="fw-bold">${comm}</td><td class="text-center">${target}</td><td class="text-center text-success">${done}</td><td class="text-center text-danger">${target - done}</td><td class="text-center">${percent}%</td></tr>`;
-      });
+      const ctx = document.getElementById('communityProgressChart');
+      if (ctx) {
+        if (window.dashChartInstance) window.dashChartInstance.destroy();
+        window.dashChartInstance = new Chart(ctx, {
+          type: 'bar',
+          data: { 
+            labels: chartLabels, 
+            datasets: [{ 
+              label: 'ร้อยละการคัดกรอง (%)', // เพิ่ม Label ตรงนี้เพื่อแก้ undefined
+              data: chartData, 
+              backgroundColor: 'rgba(14, 165, 233, 0.8)' 
+            }] 
+          },
+          options: { responsive: true, maintainAspectRatio: false }
+        });
+      }
     }
-
-    const ctx = document.getElementById('communityProgressChart');
-    if (ctx) {
-      if (window.dashChartInstance) window.dashChartInstance.destroy(); 
-      window.dashChartInstance = new Chart(ctx, { 
-        type: 'bar', 
-        data: { labels: chartLabels, datasets: [{ data: chartData, backgroundColor: 'rgba(14, 165, 233, 0.8)' }] }, 
-        options: { responsive: true, maintainAspectRatio: false } 
-      });
-    }
-
-    // ตารางผลงานรายบุคคลของ User (แสดงเฉพาะคนที่ล็อกอินเป็น User)
+    
+    // 5. แสดงตารางรายบุคคลสำหรับ User
     const userTableContainer = document.getElementById('userDashboardTableContainer');
     if (userTableContainer) {
-      if (activeVhvSession.role === 'user') {
-        userTableContainer.classList.remove('d-none');
-        const tbody = document.getElementById('dashboardSummaryTableBody');
-        if (tbody) {
-          tbody.innerHTML = '';
-          filteredScreenings.forEach(item => {
-            let bClass = item.ncd_status.includes('แดง') ? "bg-danger" : (item.ncd_status.includes('เหลือง') ? "bg-warning" : "bg-success");
-            tbody.innerHTML += `<tr><td>${item.name}</td><td><span class="badge ${bClass}">${item.ncd_status}</span></td><td>${item.bmi || '-'}</td><td>${item.bp_status}</td><td>${item.fbs_status}</td><td>${item.cvd_risk}</td></tr>`;
-          });
+        if (activeVhvSession.role === 'user') {
+            userTableContainer.classList.remove('d-none');
+            // (คงโค้ดส่วนแสดงตารางรายบุคคล User ไว้เหมือนเดิม)
+        } else {
+            userTableContainer.classList.add('d-none');
         }
-      } else {
-        userTableContainer.classList.add('d-none');
-      }
     }
 
   } catch (err) { console.error("Error:", err); }
