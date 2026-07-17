@@ -311,15 +311,11 @@ async function fetchPopulationListFromServer() {
   toggleLoaderDisplay(true);
   try {
     const dataRows = await supabaseSelectAll('data', '*', (q) => { 
-      if (activeVhvSession.role === 'user') { 
+      // 🛠️ [แก้ไขลอจิก] ปรับให้ทั้งสิทธิ์ user และ staff กรองรายชื่อเฉพาะคนที่ตัวเองรับผิดชอบ (vhv_pid)
+      if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') { 
         return q.eq('vhv_pid', activeVhvSession.vhvId);
-      } else if (activeVhvSession.role === 'staff') {
-        let query = q.eq('moo', activeVhvSession.moo);
-        if (activeVhvSession.community && activeVhvSession.community.trim() !== "") {
-          query = query.eq('community', activeVhvSession.community);
-        }
-        return query;
       } 
+      // ส่วนสิทธิ์ admin จะยังคงมองเห็นทั้งหมดตามปกติ
       return q; 
     });
     const screenRows = await supabaseSelectAll('screening', '*');
