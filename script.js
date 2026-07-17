@@ -195,6 +195,7 @@ async function fetchDashboardCountsFromServer() {
     const assignedPids = dataRows ? dataRows.map(r => r.pid.toString()) : [];
     const screenRows = await supabaseSelectAll('screening', '*');
     
+    // สร้างตัวแปร filteredScreenings
     let filteredScreenings = screenRows || []; 
     if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') { 
       filteredScreenings = filteredScreenings.filter(s => assignedPids.includes(s.citizen_id.toString())); 
@@ -210,7 +211,7 @@ async function fetchDashboardCountsFromServer() {
       else if (item.ncd_status.includes('เขียว') || item.ncd_status.includes('ปกติ')) normalCount++;
     });
 
-    // อัปเดตข้อมูลการ์ดสรุปยอดด้านบน (Top Cards) คงรูปแบบเดิม
+    // อัปเดตข้อมูลการ์ดสรุปยอดด้านบน (Top Cards)
     safetySetTextContent('stat-total-count', assignedCount); 
     safetySetTextContent('stat-normal-count', normalCount); 
     safetySetTextContent('stat-risk-count', riskCount); 
@@ -222,12 +223,11 @@ async function fetchDashboardCountsFromServer() {
     safetySetTextContent('stat-progress-percent', calculatedProgressPercent + '%');
 
     // =========================================================================
-    // [ลอจิกใหม่] สร้างกราฟและตารางความคืบหน้ารายชุมชน (เฉพาะ Admin / Staff)
+    // [ลอจิก 1] สร้างกราฟและตารางความคืบหน้ารายชุมชน (เฉพาะ Admin / Staff)
     // =========================================================================
     if (activeVhvSession.role === 'admin' || activeVhvSession.role === 'staff') {
       const commStats = {};
       
-      // 1. จัดกลุ่มเป้าหมายประชากรตามชื่อชุมชน
       dataRows.forEach(r => {
         let rawComm = r.community ? r.community.trim() : "";
         let commName = rawComm !== "" ? (rawComm.startsWith("ชุมชน") ? rawComm : `ชุมชน${rawComm}`) : "ไม่ได้ระบุชุมชน";
@@ -235,7 +235,6 @@ async function fetchDashboardCountsFromServer() {
         commStats[commName].target++;
       });
 
-      // 2. ตรวจสอบผู้ที่ได้รับการคัดกรองแล้วในแต่ละชุมชน
       const screenedPidsSet = new Set(screenRows.map(s => s.citizen_id.toString()));
       dataRows.forEach(r => {
         if (screenedPidsSet.has(r.pid.toString())) {
@@ -245,13 +244,11 @@ async function fetchDashboardCountsFromServer() {
         }
       });
 
-      // 3. เตรียมข้อมูลสำหรับตารางและกราฟ
       const chartLabels = [];
       const chartData = [];
       const tbody = document.getElementById('communityProgressTableBody'); 
       if (tbody) tbody.innerHTML = '';
 
-      // จัดเรียงชื่อชุมชนตามตัวอักษร ก-ฮ
       const sortedCommunities = Object.keys(commStats).sort();
       
       sortedCommunities.forEach(comm => {
@@ -263,7 +260,6 @@ async function fetchDashboardCountsFromServer() {
         chartLabels.push(comm);
         chartData.push(percent);
 
-        // นำข้อมูลลงตาราง
         if (tbody) {
           tbody.innerHTML += `
             <tr>
@@ -284,10 +280,9 @@ async function fetchDashboardCountsFromServer() {
         }
       });
 
-      // 4. สั่งวาดกราฟแท่งด้วย Chart.js
       const ctx = document.getElementById('communityProgressChart');
       if (ctx) {
-        if (dashChartInstance) { dashChartInstance.destroy(); } // เคลียร์กราฟเก่าก่อนวาดใหม่
+        if (dashChartInstance) { dashChartInstance.destroy(); } 
         dashChartInstance = new Chart(ctx, {
           type: 'bar',
           data: {
@@ -295,7 +290,7 @@ async function fetchDashboardCountsFromServer() {
             datasets: [{
               label: 'ความคืบหน้า (%)',
               data: chartData,
-              backgroundColor: 'rgba(14, 165, 233, 0.8)', // สีฟ้าน้ำทะเล
+              backgroundColor: 'rgba(14, 165, 233, 0.8)', 
               borderColor: 'rgb(14, 165, 233)',
               borderWidth: 1,
               borderRadius: 4
@@ -304,23 +299,17 @@ async function fetchDashboardCountsFromServer() {
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false } // ซ่อนป้ายกำกับด้านบนกราฟ
-            },
+            plugins: { legend: { display: false } },
             scales: {
-              y: { 
-                beginAtZero: true, 
-                max: 100, 
-                ticks: { callback: function(value) { return value + '%' } } 
-              }
+              y: { beginAtZero: true, max: 100, ticks: { callback: function(value) { return value + '%' } } }
             }
           }
         });
       }
     }
-  } catch (err) { console.error(err); }
-  // =========================================================================
-    // [ลอจิกใหม่] แสดงตารางสรุปผลรายบุคคล เฉพาะระดับ User บนหน้าแดชบอร์ด
+
+    // =========================================================================
+    // [ลอจิก 2] แสดงตารางสรุปผลรายบุคคล เฉพาะระดับ User บนหน้าแดชบอร์ด
     // =========================================================================
     const userTableContainer = document.getElementById('userDashboardTableContainer');
     if (activeVhvSession.role === 'user') {
@@ -352,6 +341,10 @@ async function fetchDashboardCountsFromServer() {
       // ซ่อนตารางถ้าเป็น Admin หรือ Staff
       if(userTableContainer) userTableContainer.classList.add('d-none');
     }
+
+  } catch (err) { 
+    console.error(err); 
+  }
 }
 
 async function fetchPopulationListFromServer() {
