@@ -393,68 +393,77 @@ function renderPopulationTableElements() {
 function openScreeningFormWindow(pid) {
   const citizen = populationDataset.find(c => c.pid.toString() === pid.toString()); if (!citizen) return;
   const form = document.getElementById('ncdForm'); if (form) form.reset(); changeViewWindow('form');
-  safetySetInputValue('form_pid', citizen.pid); safetySetInputValue('form_name', citizen.name); safetySetInputValue('form_age', citizen.age); safetySetInputValue('form_gender', citizen.gender);
-  safetySetTextContent('form_hist_ht', citizen.history_ht); safetySetTextContent('form_hist_dm', citizen.history_dm);
-  safetySetTextContent('label_old_weight', `(ค่าตรวจเดิม: ${citizen.old_weight} กก.)`); safetySetTextContent('label_old_height', `(ค่าตรวจเดิม: ${citizen.old_height} ซม.)`); safetySetTextContent('label_old_waist', `(ค่าตรวจเดิม: ${citizen.old_waist} ซม.)`);
+  
+  safetySetInputValue('form_pid', citizen.pid); 
+  safetySetInputValue('form_name', citizen.name); 
+  safetySetInputValue('form_age', citizen.age); 
+  safetySetInputValue('form_gender', citizen.gender);
+  safetySetTextContent('form_hist_ht', citizen.history_ht); 
+  safetySetTextContent('form_hist_dm', citizen.history_dm);
+  safetySetTextContent('label_old_weight', `(ค่าตรวจเดิม: ${citizen.old_weight} กก.)`); 
+  safetySetTextContent('label_old_height', `(ค่าตรวจเดิม: ${citizen.old_height} ซม.)`); 
+  safetySetTextContent('label_old_waist', `(ค่าตรวจเดิม: ${citizen.old_waist} ซม.)`);
+  
   const inWeightField = document.getElementById('in_weight'); const inHeightField = document.getElementById('in_height'); const inWaistField = document.getElementById('in_waist');
   if (inWeightField) inWeightField.placeholder = "0.0"; if (inWaistField) inWaistField.placeholder = "0.0"; if (inHeightField) inHeightField.placeholder = "0.0";
-  
-  // [วิธีแก้ไขใหม่] ไม่ต้องเคลียร์ค่าปุ่มเป็น false ทั้งหมดแล้วปล่อยให้มันตั้งค่าตามเงื่อนไขอย่างเดียว
+
   if (citizen.screen_id && citizen.screen_id !== "") {
-    safetySetInputValue('form_record_id', citizen.screen_id); safetySetInputValue('in_weight', citizen.screen_weight); safetySetInputValue('in_height', citizen.screen_height); safetySetInputValue('in_waist', citizen.screen_waist); safetySetInputValue('in_sbp', citizen.screen_sbp); safetySetInputValue('in_dbp', citizen.screen_dbp); safetySetInputValue('in_bsl', citizen.screen_bsl);
+    safetySetInputValue('form_record_id', citizen.screen_id); 
+    safetySetInputValue('in_weight', citizen.screen_weight); 
+    safetySetInputValue('in_height', citizen.screen_height); 
+    safetySetInputValue('in_waist', citizen.screen_waist); 
+    safetySetInputValue('in_sbp', citizen.screen_sbp); 
+    safetySetInputValue('in_dbp', citizen.screen_dbp); 
+    safetySetInputValue('in_bsl', citizen.screen_bsl);
     
-    // ตั้งค่าปุ่มตามข้อมูลในฐานระบบ พร้อมสั่ง trigger ให้ซ่อนโชว์กล่องเมนูแบบเนียนๆ
+    // ตั้งค่าตามระบบฐานข้อมูล โดยอาศัยหลักการของ HTML Radio Button
     if (citizen.screen_smoking.includes("ไม่สูบ")) { 
-      if(document.getElementById('sm_no')) { document.getElementById('sm_no').checked = true; document.getElementById('sm_no').dispatchEvent(new Event('change')); }
+      if(document.getElementById('sm_no')) document.getElementById('sm_no').checked = true; 
     } else { 
-      if(document.getElementById('sm_yes')) { document.getElementById('sm_yes').checked = true; document.getElementById('sm_yes').dispatchEvent(new Event('change')); }
+      if(document.getElementById('sm_yes')) document.getElementById('sm_yes').checked = true; 
     }
 
     if (citizen.screen_alcohol.includes("ไม่ดื่ม")) { 
-      if(document.getElementById('alc_no')) { document.getElementById('alc_no').checked = true; document.getElementById('alc_no').dispatchEvent(new Event('change')); } 
+      if(document.getElementById('alc_no')) document.getElementById('alc_no').checked = true; 
     } else { 
-      if(document.getElementById('alc_yes')) { document.getElementById('alc_yes').checked = true; document.getElementById('alc_yes').dispatchEvent(new Event('change')); }
+      if(document.getElementById('alc_yes')) document.getElementById('alc_yes').checked = true; 
     }
 
     if (citizen.screen_exercise.includes("ไม่เพียงพอ")) { 
-      if(document.getElementById('ex_low')) { document.getElementById('ex_low').checked = true; document.getElementById('ex_low').dispatchEvent(new Event('change')); } 
+      if(document.getElementById('ex_low')) document.getElementById('ex_low').checked = true; 
     } else { 
-      if(document.getElementById('ex_ok')) { document.getElementById('ex_ok').checked = true; document.getElementById('ex_ok').dispatchEvent(new Event('change')); }
+      if(document.getElementById('ex_ok')) document.getElementById('ex_ok').checked = true; 
     }
   } else { 
-    safetySetInputValue('form_record_id', ""); safetySetInputValue('in_weight', ""); safetySetInputValue('in_waist', ""); safetySetInputValue('in_height', citizen.old_height || ""); 
+    safetySetInputValue('form_record_id', ""); 
+    safetySetInputValue('in_weight', ""); 
+    safetySetInputValue('in_waist', ""); 
+    safetySetInputValue('in_height', citizen.old_height || ""); 
     
-    // ตั้งค่า Default สำหรับฟอร์มตรวจใหม่ 
-    if(document.getElementById('sm_no')) { document.getElementById('sm_no').checked = true; document.getElementById('sm_no').dispatchEvent(new Event('change')); }
-    if(document.getElementById('alc_no')) { document.getElementById('alc_no').checked = true; document.getElementById('alc_no').dispatchEvent(new Event('change')); }
-    if(document.getElementById('ex_ok')) { document.getElementById('ex_ok').checked = true; document.getElementById('ex_ok').dispatchEvent(new Event('change')); }
+    // ค่าเริ่มต้น (Default) สำหรับคนที่ยังไม่เคยคัดกรอง
+    if(document.getElementById('sm_no')) document.getElementById('sm_no').checked = true;
+    if(document.getElementById('alc_no')) document.getElementById('alc_no').checked = true;
+    if(document.getElementById('ex_ok')) document.getElementById('ex_ok').checked = true;
   }
   
-  attachRealtimeClinicalCalculationListeners(); runClinicalEvaluationEngine();
+  toggleBehaviorFreqPanel('smoke'); 
+  toggleBehaviorFreqPanel('alc'); 
+  toggleBehaviorFreqPanel('ex');
+  attachRealtimeClinicalCalculationListeners(); 
+  runClinicalEvaluationEngine();
+  
   setTimeout(function() { window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; }, 80);
 }
 
 function attachRealtimeClinicalCalculationListeners() {
-  document.querySelectorAll('.calc-hook').forEach(el => { el.removeEventListener('input', runClinicalEvaluationEngine); el.addEventListener('input', runClinicalEvaluationEngine); });
-  document.querySelectorAll('input[type="radio"]').forEach(el => { el.removeEventListener('change', runClinicalEvaluationEngine); el.addEventListener('change', runClinicalEvaluationEngine); });
-
-  // [สร้างลอจิกบังคับปุ่ม] แก้ปัญหา HTML ขาด Name Attribute ทำให้กดปุ่มแล้วค้าง 
-  const forceExclusive = (id1, id2, panelId) => {
-    const btn1 = document.getElementById(id1);
-    const btn2 = document.getElementById(id2);
-    const panel = document.getElementById(panelId);
-    if (btn1 && btn2) {
-      btn1.addEventListener('change', function() { 
-        if(this.checked) { btn2.checked = false; if(panel) panel.classList.remove('d-none'); } 
-      });
-      btn2.addEventListener('change', function() { 
-        if(this.checked) { btn1.checked = false; if(panel) panel.classList.add('d-none'); } 
-      });
-    }
-  };
-  forceExclusive('sm_yes', 'sm_no', 'panel_freq_smoke');
-  forceExclusive('alc_yes', 'alc_no', 'panel_freq_alc');
-  forceExclusive('ex_low', 'ex_ok', 'panel_freq_ex'); // low คือไม่เพียงพอโชว์พาเนล, ok คือเพียงพอซ่อนพาเนล
+  document.querySelectorAll('.calc-hook').forEach(el => { 
+    el.removeEventListener('input', runClinicalEvaluationEngine); 
+    el.addEventListener('input', runClinicalEvaluationEngine); 
+  });
+  document.querySelectorAll('input[type="radio"]').forEach(el => { 
+    el.removeEventListener('change', runClinicalEvaluationEngine); 
+    el.addEventListener('change', runClinicalEvaluationEngine); 
+  });
 }
 
 function runClinicalEvaluationEngine() {
