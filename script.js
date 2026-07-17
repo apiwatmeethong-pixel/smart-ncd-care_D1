@@ -178,18 +178,24 @@ function shiftLogsPage(num) { const maxPage = Math.ceil(masterLogList.length / r
 
 async function fetchDashboardCountsFromServer() {
   try {
-    // 1. ดึงข้อมูลประชากรทั้งหมด "แบบไม่กรอง" (เพื่อให้เห็นทั้ง 16 ชุมชน)
-    // หากฟังก์ชัน supabaseSelectAll ของคุณมีการกรองอัตโนมัติ ให้แน่ใจว่าได้ดึงแบบดึงทั้งหมดมา
-    const allDataRows = await supabaseSelectAll('data', 'pid, vhv_pid, moo, community');
-    
-    // 2. ข้อมูลส่วนตัว (สำหรับ Staff/Admin ใช้ดูสรุปการ์ดบนสุด)
+    // 1. [แก้ไขจุดนี้] ใช้การดึงข้อมูลตรงจาก db แทนการใช้ supabaseSelectAll 
+    // เพื่อข้ามตัวกรองอัตโนมัติของ helper function เดิม
+    const { data: allDataRows, error: dataErr } = await db.from('data').select('pid, vhv_pid, moo, community');
+    if (dataErr) throw dataErr;
+
+    // 2. กรองข้อมูลเฉพาะของ อสม. คนที่ล็อกอินอยู่ (สำหรับตารางรายบุคคล)
     const myDataRows = (activeVhvSession.role === 'user') 
       ? allDataRows.filter(r => r.vhv_pid && r.vhv_pid.toString() === activeVhvSession.vhvId.toString())
       : allDataRows;
 
     const assignedCount = myDataRows.length;
     const assignedPids = myDataRows.map(r => r.pid.toString());
-    const screenRows = await supabaseSelectAll('screening', '*');
+    
+    // ตรงนี้ดึง screening ทั้งหมดมาเพื่อคำนวณกราฟ (ใช้ db.from เหมือนกันถ้าตัวเดิมกรองข้อมูล)
+    const { data: screenRows, error: screenErr } = await db.from('screening').select('*');
+    if (screenErr) throw screenErr;
+    
+    // ... (โค้ดส่วนที่เหลือในฟังก์ชัน ให้คงเดิมไว้ได้เลยครับ)
     const myFilteredScreenings = (screenRows || []).filter(s => assignedPids.includes(s.citizen_id.toString()));
     
     // ... (ส่วนของการ์ด 4 ใบด้านบน คงเดิม) ...
