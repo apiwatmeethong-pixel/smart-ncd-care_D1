@@ -666,8 +666,14 @@ async function fetchVhvPerformanceReportFromServer() {
     const screenedPids = screenRows ? screenRows.map(s => s.citizen_id.toString()) : [];
 
     let filteredVhvs = allUsers || [];
+    
+    // [แก้ไขเงื่อนไข] ปลดล็อกให้ระดับ user มองเห็นข้อมูลเพื่อน อสม. ใน "ชุมชนเดียวกัน" ได้
     if (activeVhvSession.role === 'user') {
-      filteredVhvs = filteredVhvs.filter(u => u.pid_vhv === activeVhvSession.vhvId);
+      filteredVhvs = filteredVhvs.filter(u => 
+        // เช็กว่ามีชื่อชุมชนตรงกัน หรือ เป็นข้อมูลของตัวเอง
+        (u.community && activeVhvSession.community && u.community.trim() === activeVhvSession.community.trim()) ||
+        u.pid_vhv === activeVhvSession.vhvId
+      );
     } else if (activeVhvSession.role === 'staff') {
       filteredVhvs = filteredVhvs.filter(u => 
         u.pid_vhv === activeVhvSession.vhvId || 
@@ -684,11 +690,18 @@ async function fetchVhvPerformanceReportFromServer() {
       const target = myCitizens.length;
       const done = myCitizens.filter(r => screenedPids.includes(r.pid.toString())).length;
       const pending = target - done;
-      const percentage = target > 0 ? ((done / target) * 100).toFixed(1) : "0.0";
+      const percentage = target > 0 ? parseFloat(((done / target) * 100).toFixed(1)) : 0.0;
       
       return {
         name: u.full_name, moo: u.moo, community: u.community || '', target: target, done: done, pending: pending, percentage: percentage, role: u.role
       };
+    });
+
+    // [ฟังก์ชันเสริม] จัดเรียงรายชื่อ: เอาตัวเองไว้บนสุด ที่เหลือเรียงตามร้อยละผลงานจากมากไปน้อย
+    masterVhvPerformanceList.sort((a, b) => {
+        if (a.name === activeVhvSession.name) return -1;
+        if (b.name === activeVhvSession.name) return 1;
+        return b.percentage - a.percentage; 
     });
 
     masterVhvPerformanceList = masterVhvPerformanceList.filter(item => 
