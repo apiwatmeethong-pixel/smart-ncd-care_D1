@@ -148,7 +148,31 @@
       </table>
     </div>
   </div>
-
+</div>
+              <!-- ตารางสรุปผลรายบุคคล (ระบบจะแสดงเฉพาะสิทธิ์ User เท่านั้น) -->
+<div id="userDashboardTableContainer" class="card shadow-sm border-0 mt-4 d-none">
+  <div class="card-header bg-white py-3">
+    <h5 class="mb-0 text-success fw-bold">
+      <i class="fa-solid fa-clipboard-user me-2"></i>ตารางผลการคัดกรองรายบุคคลของคุณ
+    </h5>
+  </div>
+  <div class="card-body p-0 table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light">
+        <tr>
+          <th>ชื่อ - นามสกุล</th>
+          <th>สรุปสถานะกลุ่ม</th>
+          <th>ดัชนีมวลกาย</th>
+          <th>ความดัน (HT)</th>
+          <th>น้ำตาล (DM)</th>
+          <th>หัวใจ (CVD)</th>
+        </tr>
+      </thead>
+      <tbody id="dashboardSummaryTableBody">
+        <!-- ข้อมูลจะถูกดึงมาแสดงอัตโนมัติ -->
+      </tbody>
+    </table>
+  </div>
 </div>
             </div>
 
