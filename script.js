@@ -407,12 +407,10 @@ function openScreeningFormWindow(pid) {
   const inWeightField = document.getElementById('in_weight'); const inHeightField = document.getElementById('in_height'); const inWaistField = document.getElementById('in_waist');
   if (inWeightField) inWeightField.placeholder = "0.0"; if (inWaistField) inWaistField.placeholder = "0.0"; if (inHeightField) inHeightField.placeholder = "0.0";
 
-  // 🛠️ [ฟังก์ชันตัวช่วยใหม่] ค้นหาและตั้งค่า Dropdown โดยเช็กว่าฐานข้อมูลมี "คำนี้" อยู่หรือไม่ (แม่นยำ 100%)
   const autoSelectDropdown = (selectId, dbText) => {
     const el = document.getElementById(selectId);
     if (!el || !dbText) return;
     for (let i = 0; i < el.options.length; i++) {
-        // ถ้าข้อความใน DB มีคำของตัวเลือกนั้นๆ ผสมอยู่ ให้เลือกข้อนั้นทันที
         if (dbText.includes(el.options[i].value)) {
             el.selectedIndex = i;
             break;
@@ -458,10 +456,11 @@ function openScreeningFormWindow(pid) {
     safetySetInputValue('in_waist', ""); 
     safetySetInputValue('in_height', citizen.old_height || ""); 
     
-    // ค่าเริ่มต้น (Default) สำหรับประชากรที่ยังไม่เคยคัดกรอง
+    // [แก้ไขแล้ว] ตั้งค่า Default สำหรับประชากรที่ยังไม่เคยคัดกรอง
     if(document.getElementById('sm_no')) document.getElementById('sm_no').checked = true;
     if(document.getElementById('alc_no')) document.getElementById('alc_no').checked = true;
-    if(document.getElementById('ex_ok')) document.getElementById('ex_ok').checked = true;
+    // เปลี่ยนจาก ex_ok เป็น ex_low เพื่อให้ค่าเริ่มต้นเป็น "ไม่เพียงพอ"
+    if(document.getElementById('ex_low')) document.getElementById('ex_low').checked = true; 
   }
   
   toggleBehaviorFreqPanel('smoke'); 
