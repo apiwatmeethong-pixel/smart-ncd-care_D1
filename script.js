@@ -407,6 +407,19 @@ function openScreeningFormWindow(pid) {
   const inWeightField = document.getElementById('in_weight'); const inHeightField = document.getElementById('in_height'); const inWaistField = document.getElementById('in_waist');
   if (inWeightField) inWeightField.placeholder = "0.0"; if (inWaistField) inWaistField.placeholder = "0.0"; if (inHeightField) inHeightField.placeholder = "0.0";
 
+  // 🛠️ [ฟังก์ชันตัวช่วยใหม่] ค้นหาและตั้งค่า Dropdown โดยเช็กว่าฐานข้อมูลมี "คำนี้" อยู่หรือไม่ (แม่นยำ 100%)
+  const autoSelectDropdown = (selectId, dbText) => {
+    const el = document.getElementById(selectId);
+    if (!el || !dbText) return;
+    for (let i = 0; i < el.options.length; i++) {
+        // ถ้าข้อความใน DB มีคำของตัวเลือกนั้นๆ ผสมอยู่ ให้เลือกข้อนั้นทันที
+        if (dbText.includes(el.options[i].value)) {
+            el.selectedIndex = i;
+            break;
+        }
+    }
+  };
+
   if (citizen.screen_id && citizen.screen_id !== "") {
     safetySetInputValue('form_record_id', citizen.screen_id); 
     safetySetInputValue('in_weight', citizen.screen_weight); 
@@ -416,38 +429,28 @@ function openScreeningFormWindow(pid) {
     safetySetInputValue('in_dbp', citizen.screen_dbp); 
     safetySetInputValue('in_bsl', citizen.screen_bsl);
     
-    // [อัปเดตแก้ไข] สร้างตัวแกะข้อความเพื่อดึงความถี่ในวงเล็บ (...) ออกมา
-    const extractFreq = (text) => { 
-      if (!text) return null;
-      const match = text.match(/\(([^)]+)\)/); 
-      return match ? match[1] : null; 
-    };
-
     // 1. การสูบบุหรี่
     if (citizen.screen_smoking.includes("ไม่สูบ")) { 
-      if(document.getElementById('sm_no')) { document.getElementById('sm_no').checked = true; document.getElementById('sm_no').dispatchEvent(new Event('change')); }
+      if(document.getElementById('sm_no')) document.getElementById('sm_no').checked = true; 
     } else { 
-      if(document.getElementById('sm_yes')) { document.getElementById('sm_yes').checked = true; document.getElementById('sm_yes').dispatchEvent(new Event('change')); }
-      const freq = extractFreq(citizen.screen_smoking);
-      if (freq && document.getElementById('sel_freq_smoke')) document.getElementById('sel_freq_smoke').value = freq;
+      if(document.getElementById('sm_yes')) document.getElementById('sm_yes').checked = true; 
+      autoSelectDropdown('sel_freq_smoke', citizen.screen_smoking);
     }
 
     // 2. การดื่มสุรา
     if (citizen.screen_alcohol.includes("ไม่ดื่ม")) { 
-      if(document.getElementById('alc_no')) { document.getElementById('alc_no').checked = true; document.getElementById('alc_no').dispatchEvent(new Event('change')); } 
+      if(document.getElementById('alc_no')) document.getElementById('alc_no').checked = true; 
     } else { 
-      if(document.getElementById('alc_yes')) { document.getElementById('alc_yes').checked = true; document.getElementById('alc_yes').dispatchEvent(new Event('change')); }
-      const freq = extractFreq(citizen.screen_alcohol);
-      if (freq && document.getElementById('sel_freq_alc')) document.getElementById('sel_freq_alc').value = freq;
+      if(document.getElementById('alc_yes')) document.getElementById('alc_yes').checked = true; 
+      autoSelectDropdown('sel_freq_alc', citizen.screen_alcohol);
     }
 
     // 3. การออกกำลังกาย
     if (citizen.screen_exercise.includes("ไม่เพียงพอ")) { 
-      if(document.getElementById('ex_low')) { document.getElementById('ex_low').checked = true; document.getElementById('ex_low').dispatchEvent(new Event('change')); } 
-      const freq = extractFreq(citizen.screen_exercise);
-      if (freq && document.getElementById('sel_freq_ex')) document.getElementById('sel_freq_ex').value = freq;
+      if(document.getElementById('ex_low')) document.getElementById('ex_low').checked = true; 
+      autoSelectDropdown('sel_freq_ex', citizen.screen_exercise);
     } else { 
-      if(document.getElementById('ex_ok')) { document.getElementById('ex_ok').checked = true; document.getElementById('ex_ok').dispatchEvent(new Event('change')); }
+      if(document.getElementById('ex_ok')) document.getElementById('ex_ok').checked = true; 
     }
   } else { 
     safetySetInputValue('form_record_id', ""); 
@@ -455,18 +458,20 @@ function openScreeningFormWindow(pid) {
     safetySetInputValue('in_waist', ""); 
     safetySetInputValue('in_height', citizen.old_height || ""); 
     
-    // ค่าเริ่มต้น (Default) สำหรับคนที่ยังไม่เคยคัดกรอง
-    if(document.getElementById('sm_no')) { document.getElementById('sm_no').checked = true; document.getElementById('sm_no').dispatchEvent(new Event('change')); }
-    if(document.getElementById('alc_no')) { document.getElementById('alc_no').checked = true; document.getElementById('alc_no').dispatchEvent(new Event('change')); }
-    if(document.getElementById('ex_ok')) { document.getElementById('ex_ok').checked = true; document.getElementById('ex_ok').dispatchEvent(new Event('change')); }
+    // ค่าเริ่มต้น (Default) สำหรับประชากรที่ยังไม่เคยคัดกรอง
+    if(document.getElementById('sm_no')) document.getElementById('sm_no').checked = true;
+    if(document.getElementById('alc_no')) document.getElementById('alc_no').checked = true;
+    if(document.getElementById('ex_ok')) document.getElementById('ex_ok').checked = true;
   }
   
+  toggleBehaviorFreqPanel('smoke'); 
+  toggleBehaviorFreqPanel('alc'); 
+  toggleBehaviorFreqPanel('ex');
   attachRealtimeClinicalCalculationListeners(); 
   runClinicalEvaluationEngine();
   
   setTimeout(function() { window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; }, 80);
 }
-
 function attachRealtimeClinicalCalculationListeners() {
   document.querySelectorAll('.calc-hook').forEach(el => { 
     el.removeEventListener('input', runClinicalEvaluationEngine); 
