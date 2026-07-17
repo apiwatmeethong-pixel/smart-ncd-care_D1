@@ -177,38 +177,26 @@ function shiftReportPage(num) { const maxPage = Math.ceil(masterReportList.lengt
 function shiftLogsPage(num) { const maxPage = Math.ceil(masterLogList.length / rowsPerPageLimit) || 1; logsCurrentPage = Math.max(1, Math.min(num, maxPage)); renderLogTable(); }
 
 async function fetchDashboardCountsFromServer() {
-  // ประกาศตัวแปรไว้บรรทัดแรกสุดของฟังก์ชัน เพื่อให้ใช้งานได้ทุกที่
-  let filteredScreenings = [];
-  let dataRows = [];
-  let screenRows = [];
-
   try {
-    dataRows = await supabaseSelectAll('data', 'pid, vhv_pid, moo, community', (q) => { 
-      if (activeVhvSession.role === 'user') { 
-        return q.eq('vhv_pid', activeVhvSession.vhvId);
-      } else if (activeVhvSession.role === 'staff') {
-        let query = q.eq('moo', activeVhvSession.moo);
-        if (activeVhvSession.community && activeVhvSession.community.trim() !== "") {
-          query = query.eq('community', activeVhvSession.community);
-        }
-        return query;
-      }
-      return q; 
-    });
+    // 1. ดึงข้อมูลประชากร
+    const allDataRows = await supabaseSelectAll('data', 'pid, vhv_pid, moo, community');
     
-    const assignedCount = dataRows ? dataRows.length : 0; 
-    const assignedPids = dataRows ? dataRows.map(r => r.pid.toString()) : [];
-    screenRows = await supabaseSelectAll('screening', '*');
+    // 2. กรองข้อมูลเฉพาะของ อสม. คนที่ล็อกอินอยู่ (เพื่อใช้ในตารางรายบุคคลของ User)
+    const myDataRows = (activeVhvSession.role === 'user') 
+      ? allDataRows.filter(r => r.vhv_pid && r.vhv_pid.toString() === activeVhvSession.vhvId.toString())
+      : allDataRows;
+
+    const assignedCount = myDataRows.length;
+    const assignedPids = myDataRows.map(r => r.pid.toString());
     
-    // กำหนดค่าให้ตัวแปรที่ประกาศไว้ข้างต้น
-    filteredScreenings = screenRows || []; 
-    if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') { 
-      filteredScreenings = filteredScreenings.filter(s => assignedPids.includes(s.citizen_id.toString())); 
-    }
+    const screenRows = await supabaseSelectAll('screening', '*');
     
-    let normalCount = 0; let riskCount = 0; let alertCount = 0; let totalSmokerCount = 0; let totalDrinkerCount = 0;
+    // 3. กรองผลคัดกรองเฉพาะของ อสม. คนนั้น (สำหรับ User)
+    const myFilteredScreenings = (screenRows || []).filter(s => assignedPids.includes(s.citizen_id.toString()));
     
-    filteredScreenings.forEach(item => {
+    // 4. คำนวณสรุปผลการ์ดบนสุด
+    let normalCount = 0, riskCount = 0, alertCount = 0, totalSmokerCount = 0, totalDrinkerCount = 0;
+    myFilteredScreenings.forEach(item => {
       if (item.smoking && item.smoking.includes('สูบ') && !item.smoking.includes('ไม่สูบ')) totalSmokerCount++;
       if (item.alcohol && item.alcohol.includes('ดื่ม') && !item.alcohol.includes('ไม่ดื่ม')) totalDrinkerCount++;
       if (item.ncd_status.includes('แดง') || item.ncd_status.includes('สงสัย')) alertCount++;
@@ -216,33 +204,42 @@ async function fetchDashboardCountsFromServer() {
       else if (item.ncd_status.includes('เขียว') || item.ncd_status.includes('ปกติ')) normalCount++;
     });
 
-    // อัปเดต UI หน้า Dashboard (การ์ดบนสุด)
     safetySetTextContent('stat-total-count', assignedCount); 
     safetySetTextContent('stat-normal-count', normalCount); 
     safetySetTextContent('stat-risk-count', riskCount); 
     safetySetTextContent('stat-alert-count', alertCount); 
-    safetySetTextContent('stat-screened-count', filteredScreenings.length); 
+    safetySetTextContent('stat-screened-count', myFilteredScreenings.length); 
     safetySetTextContent('stat-smoker-count', totalSmokerCount); 
     safetySetTextContent('stat-drinker-count', totalDrinkerCount);
-    let calculatedProgressPercent = ((filteredScreenings.length / (assignedCount || 1)) * 100).toFixed(1); 
-    safetySetTextContent('stat-progress-percent', calculatedProgressPercent + '%');
+    let progress = ((myFilteredScreenings.length / (assignedCount || 1)) * 100).toFixed(1); 
+    safetySetTextContent('stat-progress-percent', progress + '%');
 
-    // ส่วนของ Admin/Staff: กราฟและตาราง
+    // =========================================================================
+    // ส่วนที่ 5: ลอจิกแยกการแสดงผล
+    // =========================================================================
+    
+    const adminStaffSection = document.querySelector('.admin-staff-only');
+    const userTableContainer = document.getElementById('userDashboardTableContainer');
+
     if (activeVhvSession.role === 'admin' || activeVhvSession.role === 'staff') {
+      // โหมดผู้บริหาร: แสดงกราฟและตาราง 16 ชุมชน
+      if (adminStaffSection) adminStaffSection.classList.remove('d-none');
+      if (userTableContainer) userTableContainer.classList.add('d-none');
+
       const commStats = {};
-      dataRows.forEach(r => {
-        let rawComm = r.community ? r.community.trim() : "";
-        let commName = rawComm !== "" ? (rawComm.startsWith("ชุมชน") ? rawComm : `ชุมชน${rawComm}`) : "ไม่ได้ระบุชุมชน";
-        if (!commStats[commName]) { commStats[commName] = { target: 0, done: 0 }; }
+      allDataRows.forEach(r => {
+        let rawComm = r.community ? r.community.trim() : "ไม่ได้ระบุชุมชน";
+        let commName = rawComm.startsWith("ชุมชน") ? rawComm : `ชุมชน${rawComm}`;
+        if (!commStats[commName]) commStats[commName] = { target: 0, done: 0 };
         commStats[commName].target++;
       });
 
       const screenedPidsSet = new Set(screenRows.map(s => s.citizen_id.toString()));
-      dataRows.forEach(r => {
+      allDataRows.forEach(r => {
         if (screenedPidsSet.has(r.pid.toString())) {
-          let rawComm = r.community ? r.community.trim() : "";
-          let commName = rawComm !== "" ? (rawComm.startsWith("ชุมชน") ? rawComm : `ชุมชน${rawComm}`) : "ไม่ได้ระบุชุมชน";
-          if(commStats[commName]) commStats[commName].done++;
+          let rawComm = r.community ? r.community.trim() : "ไม่ได้ระบุชุมชน";
+          let commName = rawComm.startsWith("ชุมชน") ? rawComm : `ชุมชน${rawComm}`;
+          if (commStats[commName]) commStats[commName].done++;
         }
       });
 
@@ -261,31 +258,29 @@ async function fetchDashboardCountsFromServer() {
       const ctx = document.getElementById('communityProgressChart');
       if (ctx) {
         if (window.dashChartInstance) window.dashChartInstance.destroy(); 
-        window.dashChartInstance = new Chart(ctx, { type: 'bar', data: { labels: chartLabels, datasets: [{ data: chartData, backgroundColor: 'rgba(14, 165, 233, 0.8)' }] }, options: { responsive: true, maintainAspectRatio: false } });
+        window.dashChartInstance = new Chart(ctx, { 
+          type: 'bar', 
+          data: { labels: chartLabels, datasets: [{ data: chartData, backgroundColor: 'rgba(14, 165, 233, 0.8)' }] }, 
+          options: { responsive: true, maintainAspectRatio: false } 
+        });
       }
-    }
 
-    // ส่วนของ User: ตารางสรุปรายบุคคล
-    const userTableContainer = document.getElementById('userDashboardTableContainer');
-    if (activeVhvSession.role === 'user') {
-      if(userTableContainer) userTableContainer.classList.remove('d-none');
+    } else if (activeVhvSession.role === 'user') {
+      // โหมด อสม: แสดงตารางรายบุคคลของตนเอง
+      if (adminStaffSection) adminStaffSection.classList.add('d-none');
+      if (userTableContainer) userTableContainer.classList.remove('d-none');
+      
       const tbody = document.getElementById('dashboardSummaryTableBody');
       if (tbody) {
         tbody.innerHTML = '';
-        filteredScreenings.forEach(item => {
+        myFilteredScreenings.forEach(item => {
           let bClass = item.ncd_status.includes('แดง') ? "bg-danger" : (item.ncd_status.includes('เหลือง') ? "bg-warning" : "bg-success");
           tbody.innerHTML += `<tr><td>${item.name}</td><td><span class="badge ${bClass}">${item.ncd_status}</span></td><td>${item.bmi || '-'}</td><td>${item.bp_status}</td><td>${item.fbs_status}</td><td>${item.cvd_risk}</td></tr>`;
         });
       }
-    } else {
-      if(userTableContainer) userTableContainer.classList.add('d-none');
     }
-
-  } catch (err) { 
-    console.error("เกิดข้อผิดพลาดในการโหลด Dashboard:", err); 
-  }
+  } catch (err) { console.error("Error:", err); }
 }
-
 async function fetchPopulationListFromServer() {
   toggleLoaderDisplay(true);
   try {
