@@ -407,12 +407,15 @@ function openScreeningFormWindow(pid) {
   const inWeightField = document.getElementById('in_weight'); const inHeightField = document.getElementById('in_height'); const inWaistField = document.getElementById('in_waist');
   if (inWeightField) inWeightField.placeholder = "0.0"; if (inWaistField) inWaistField.placeholder = "0.0"; if (inHeightField) inHeightField.placeholder = "0.0";
 
+  // ฟังก์ชันตั้งค่า Dropdown ที่ทนทานต่อการเว้นวรรคผิดพลาด
   const autoSelectDropdown = (selectId, dbText) => {
     const el = document.getElementById(selectId);
     if (!el || !dbText) return;
+    const cleanDbText = dbText.replace(/\s+/g, ''); // ลบเว้นวรรคทิ้งให้หมดก่อนเทียบ
     for (let i = 0; i < el.options.length; i++) {
-        if (dbText.includes(el.options[i].value)) {
-            el.selectedIndex = i;
+        const cleanOptionText = el.options[i].value.replace(/\s+/g, '');
+        if (cleanDbText.includes(cleanOptionText)) {
+            el.value = el.options[i].value;
             break;
         }
     }
@@ -429,26 +432,26 @@ function openScreeningFormWindow(pid) {
     
     // 1. การสูบบุหรี่
     if (citizen.screen_smoking.includes("ไม่สูบ")) { 
-      if(document.getElementById('sm_no')) document.getElementById('sm_no').checked = true; 
+      if(document.getElementById('sm_no')) document.getElementById('sm_no').click(); 
     } else { 
-      if(document.getElementById('sm_yes')) document.getElementById('sm_yes').checked = true; 
+      if(document.getElementById('sm_yes')) document.getElementById('sm_yes').click(); 
       autoSelectDropdown('sel_freq_smoke', citizen.screen_smoking);
     }
 
     // 2. การดื่มสุรา
     if (citizen.screen_alcohol.includes("ไม่ดื่ม")) { 
-      if(document.getElementById('alc_no')) document.getElementById('alc_no').checked = true; 
+      if(document.getElementById('alc_no')) document.getElementById('alc_no').click(); 
     } else { 
-      if(document.getElementById('alc_yes')) document.getElementById('alc_yes').checked = true; 
+      if(document.getElementById('alc_yes')) document.getElementById('alc_yes').click(); 
       autoSelectDropdown('sel_freq_alc', citizen.screen_alcohol);
     }
 
     // 3. การออกกำลังกาย
-    if (citizen.screen_exercise.includes("ไม่เพียงพอ")) { 
-      if(document.getElementById('ex_low')) document.getElementById('ex_low').checked = true; 
+    if (citizen.screen_exercise.includes("ไม่เพียงพอ") || citizen.screen_exercise.includes("ไม่ได้ออก")) { 
+      if(document.getElementById('ex_low')) document.getElementById('ex_low').click(); 
       autoSelectDropdown('sel_freq_ex', citizen.screen_exercise);
     } else { 
-      if(document.getElementById('ex_ok')) document.getElementById('ex_ok').checked = true; 
+      if(document.getElementById('ex_ok')) document.getElementById('ex_ok').click(); 
     }
   } else { 
     safetySetInputValue('form_record_id', ""); 
@@ -456,11 +459,10 @@ function openScreeningFormWindow(pid) {
     safetySetInputValue('in_waist', ""); 
     safetySetInputValue('in_height', citizen.old_height || ""); 
     
-    // [แก้ไขแล้ว] ตั้งค่า Default สำหรับประชากรที่ยังไม่เคยคัดกรอง
-    if(document.getElementById('sm_no')) document.getElementById('sm_no').checked = true;
-    if(document.getElementById('alc_no')) document.getElementById('alc_no').checked = true;
-    // เปลี่ยนจาก ex_ok เป็น ex_low เพื่อให้ค่าเริ่มต้นเป็น "ไม่เพียงพอ"
-    if(document.getElementById('ex_low')) document.getElementById('ex_low').checked = true; 
+    // ค่าเริ่มต้น (Default) บังคับให้เปลี่ยนสีปุ่มทันที
+    if(document.getElementById('sm_no')) document.getElementById('sm_no').click();
+    if(document.getElementById('alc_no')) document.getElementById('alc_no').click();
+    if(document.getElementById('ex_low')) document.getElementById('ex_low').click(); // เริ่มต้นที่ "ไม่เพียงพอ" เสมอ
   }
   
   toggleBehaviorFreqPanel('smoke'); 
@@ -471,6 +473,7 @@ function openScreeningFormWindow(pid) {
   
   setTimeout(function() { window.scrollTo(0, 0); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; }, 80);
 }
+
 function attachRealtimeClinicalCalculationListeners() {
   document.querySelectorAll('.calc-hook').forEach(el => { 
     el.removeEventListener('input', runClinicalEvaluationEngine); 
@@ -566,14 +569,13 @@ async function submitFormScreeningData(e) {
   const dbpRaw = document.getElementById('in_dbp').value; 
   const bslRaw = document.getElementById('in_bsl').value;
   
-  // ตรวจจับกรณีปล่อยช่องว่าง
   if (wRaw === "" || hRaw === "" || waistRaw === "" || sbpRaw === "" || dbpRaw === "" || bslRaw === "") { 
     Swal.fire({ icon: 'error', title: 'ไม่สามารถบันทึกข้อมูลได้', text: 'กรุณากรอกข้อมูลสัญญาณชีพให้ครบถ้วนก่อนทำการบันทึกครับ!' }); 
     if (form) form.classList.add('was-validated'); 
     return; 
   }
   
-  // [แก้ไข] ดักจับน้ำหนัก < 20 ทันที (วางไว้จุดนี้ระบบจะเตือนทันทีที่กดบันทึก)
+  // แจ้งเตือนน้ำหนัก
   const weightVal = parseFloat(wRaw);
   if (isNaN(weightVal) || weightVal < 20 || weightVal > 300) {
     Swal.fire({ icon: 'warning', title: 'ค่าน้ำหนักผิดปกติ', text: 'ระบบตรวจพบน้ำหนักต่ำกว่า 20 กก. (หรือเกิน 300 กก.) โปรดตรวจสอบจุดทศนิยมหรือความถูกต้องอีกครั้งครับ' });
@@ -590,14 +592,10 @@ async function submitFormScreeningData(e) {
   const citizenIdVal = document.getElementById('form_pid').value; 
   if (!recId || recId === "") { recId = `SCR-${citizenIdVal}-${new Date().getTime()}`; }
   
-  // [แก้ไข] ตัดสินใจเลือกค่าตัวเลือกพฤติกรรมอย่างเด็ดขาดตามปุ่มบนหน้าจอ
-  const isSmoker = document.getElementById('sm_yes') && document.getElementById('sm_yes').checked;
-  const isDrinker = document.getElementById('alc_yes') && document.getElementById('alc_yes').checked;
-  const isExLow = document.getElementById('ex_low') && document.getElementById('ex_low').checked;
-
-  const finalSmoking = isSmoker ? `สูบ (${document.getElementById('sel_freq_smoke').value})` : "ไม่สูบ";
-  const finalAlcohol = isDrinker ? `ดื่ม (${document.getElementById('sel_freq_alc').value})` : "ไม่ดื่ม";
-  const finalExercise = isExLow ? `ไม่เพียงพอ (${document.getElementById('sel_freq_ex').value})` : "เพียงพอ";
+  // ดึงค่าตัวเลือกให้ตรงตามปุ่มที่โดนคลิกเป๊ะๆ
+  const finalSmoking = document.getElementById('sm_yes').checked ? `สูบ (${document.getElementById('sel_freq_smoke').value})` : "ไม่สูบ";
+  const finalAlcohol = document.getElementById('alc_yes').checked ? `ดื่ม (${document.getElementById('sel_freq_alc').value})` : "ไม่ดื่ม";
+  const finalExercise = document.getElementById('ex_low').checked ? `ไม่เพียงพอ (${document.getElementById('sel_freq_ex').value})` : "เพียงพอ";
 
   const payload = {
     id: recId, citizen_id: parseInt(citizenIdVal), name: document.getElementById('form_name').value, age: parseInt(document.getElementById('form_age').value), gender: document.getElementById('form_gender').value, weight: weightVal, height: parseFloat(hRaw), bmi: parseFloat(document.getElementById('rt-bmi').innerText) || 0, waist: parseFloat(waistRaw), bp_sys: sbp, bp_dia: dbp, bp_status: document.getElementById('rt-bp').innerText, fbs: bsl, fbs_status: document.getElementById('rt-bsl').innerText,
