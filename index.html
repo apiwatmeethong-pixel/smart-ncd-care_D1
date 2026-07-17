@@ -8,7 +8,7 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/822/822118.png">
-  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -106,10 +106,50 @@
                 <div class="col-6 col-lg-3"><div class="card stat-card bg-white p-2 border shadow-sm"><div class="card-body"><span class="text-orange fs-5 fw-bold"><i class="fa-solid fa-percent me-1"></i> 4.ร้อยละผลคัดกรอง</span><h1 class="fw-black text-dark display-3 mt-2 mb-0" id="stat-progress-percent">0%</h1></div></div></div>
               </div>
 
-              <div class="card card-container-panel p-4">
-                <h4 class="fw-bold text-dark mb-3"><i class="fa-solid fa-table-list text-primary me-2"></i>ตารางรายงานข้อมูลรายชื่อคัดกรองประจำปี</h4>
-                <div class="table-responsive"><table class="table table-bordered align-middle mb-0 text-nowrap mobile-card-table"><thead class="table-light fs-5 font-weight-bold"><tr><th>ชื่อ - นามสกุล</th><th>สรุปสถานะกลุ่ม</th><th>แปลดัชนีมวลกาย (BMI)</th><th>แปลความดัน (HT)</th><th>แปลน้ำตาล (DM)</th><th>ประเมินหัวใจ (CVD)</th></tr></thead><tbody id="dashboardSummaryTableBody" class="fs-5 fw-bold text-dark"></tbody></table></div>
-              </div>
+              <!-- พื้นที่แสดงกราฟและตารางสรุปรายชุมชน (เฉพาะ Admin และ Staff) -->
+<div class="admin-staff-only mt-4">
+  
+  <!-- ส่วนที่ 1: กราฟแท่ง -->
+  <div class="card shadow-sm mb-4 border-0">
+    <div class="card-header bg-white py-3">
+      <h5 class="mb-0 text-primary fw-bold">
+        <i class="fa-solid fa-chart-column me-2"></i>กราฟแสดงร้อยละความคืบหน้าการคัดกรอง 16 ชุมชน
+      </h5>
+    </div>
+    <div class="card-body">
+      <!-- บังคับความสูงของกราฟไม่ให้ล้นจอ -->
+      <div style="height: 350px; width: 100%;">
+        <canvas id="communityProgressChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ส่วนที่ 2: ตารางสรุปผลรายชุมชน -->
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-white py-3">
+      <h5 class="mb-0 text-primary fw-bold">
+        <i class="fa-solid fa-table-list me-2"></i>ตารางรายงานความคืบหน้าสรุปผลงานรายชุมชน
+      </h5>
+    </div>
+    <div class="card-body p-0 table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>ชื่อชุมชน</th>
+            <th class="text-center">เป้าหมาย (คน)</th>
+            <th class="text-center">คัดกรองแล้ว (คน)</th>
+            <th class="text-center">คงเหลือ (คน)</th>
+            <th class="text-center w-25">ร้อยละความคืบหน้า</th>
+          </tr>
+        </thead>
+        <tbody id="communityProgressTableBody">
+          <!-- ข้อมูลสรุปรายชุมชนจะถูกประมวลผลมาแสดงที่นี่ -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
             </div>
 
             <div id="view-window-list" class="sub-view-panel d-none">
