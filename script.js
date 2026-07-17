@@ -667,13 +667,23 @@ async function fetchVhvPerformanceReportFromServer() {
 
     let filteredVhvs = allUsers || [];
     
-    // [แก้ไขเงื่อนไข] ปลดล็อกให้ระดับ user มองเห็นข้อมูลเพื่อน อสม. ใน "ชุมชนเดียวกัน" ได้
+    // [แก้ไขลอจิก] ให้เทียบทั้ง "หมู่" และ "ชื่อชุมชน" ให้ตรงกัน (รองรับกรณีช่องชุมชนเป็นค่าว่าง)
     if (activeVhvSession.role === 'user') {
-      filteredVhvs = filteredVhvs.filter(u => 
-        // เช็กว่ามีชื่อชุมชนตรงกัน หรือ เป็นข้อมูลของตัวเอง
-        (u.community && activeVhvSession.community && u.community.trim() === activeVhvSession.community.trim()) ||
-        u.pid_vhv === activeVhvSession.vhvId
-      );
+      const myMoo = parseInt(activeVhvSession.moo) || 0;
+      const myComm = (activeVhvSession.community || "").trim();
+
+      filteredVhvs = filteredVhvs.filter(u => {
+        const uMoo = parseInt(u.moo) || 0;
+        const uComm = (u.community || "").trim();
+
+        // 1. ถ้าเป็นตัวเอง ให้แสดงเสมอ
+        if (u.pid_vhv === activeVhvSession.vhvId) return true;
+        
+        // 2. ถ้าอยู่ หมู่เดียวกัน และ ชุมชนเดียวกัน ให้แสดงเพื่อนในหมู่ด้วย
+        if (uMoo === myMoo && uComm === myComm) return true;
+
+        return false;
+      });
     } else if (activeVhvSession.role === 'staff') {
       filteredVhvs = filteredVhvs.filter(u => 
         u.pid_vhv === activeVhvSession.vhvId || 
@@ -697,7 +707,7 @@ async function fetchVhvPerformanceReportFromServer() {
       };
     });
 
-    // [ฟังก์ชันเสริม] จัดเรียงรายชื่อ: เอาตัวเองไว้บนสุด ที่เหลือเรียงตามร้อยละผลงานจากมากไปน้อย
+    // จัดเรียงรายชื่อ: เอาตัวเองไว้บนสุดเสมอ ที่เหลือจัดอันดับตามร้อยละผลงานจากมากไปน้อย
     masterVhvPerformanceList.sort((a, b) => {
         if (a.name === activeVhvSession.name) return -1;
         if (b.name === activeVhvSession.name) return 1;
