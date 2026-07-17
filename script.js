@@ -319,6 +319,39 @@ async function fetchDashboardCountsFromServer() {
       }
     }
   } catch (err) { console.error(err); }
+  // =========================================================================
+    // [ลอจิกใหม่] แสดงตารางสรุปผลรายบุคคล เฉพาะระดับ User บนหน้าแดชบอร์ด
+    // =========================================================================
+    const userTableContainer = document.getElementById('userDashboardTableContainer');
+    if (activeVhvSession.role === 'user') {
+      if(userTableContainer) userTableContainer.classList.remove('d-none');
+      const tbody = document.getElementById('dashboardSummaryTableBody');
+      if (tbody) {
+        tbody.innerHTML = '';
+        if (filteredScreenings.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">ยังไม่มีข้อมูลผลการคัดกรองเสร็จสิ้น</td></tr>';
+        } else {
+          filteredScreenings.forEach(item => {
+            let bClass = "bg-secondary"; 
+            if (item.ncd_status.includes('เขียว') || item.ncd_status.includes('ปกติ')) bClass = "bg-success"; 
+            else if (item.ncd_status.includes('เหลือง') || item.ncd_status.includes('เสี่ยง')) bClass = "bg-warning text-dark"; 
+            else if (item.ncd_status.includes('แดง') || item.ncd_status.includes('สงสัย')) bClass = "bg-danger";
+            
+            tbody.innerHTML += `<tr>
+              <td data-label="ชื่อ - นามสกุล">${item.name}</td>
+              <td data-label="สรุปสถานะกลุ่ม"><span class="badge ${bClass} fs-6">${item.ncd_status}</span></td>
+              <td data-label="แปลดัชนีมวลกาย" class="text-primary">${item.bmi || '-'}</td>
+              <td data-label="แปลความดัน (HT)">${item.bp_status}</td>
+              <td data-label="แปลน้ำตาล (DM)">${item.fbs_status}</td>
+              <td data-label="ประเมินหัวใจ (CVD)">${item.cvd_risk}</td>
+            </tr>`;
+          });
+        }
+      }
+    } else {
+      // ซ่อนตารางถ้าเป็น Admin หรือ Staff
+      if(userTableContainer) userTableContainer.classList.add('d-none');
+    }
 }
 
 async function fetchPopulationListFromServer() {
