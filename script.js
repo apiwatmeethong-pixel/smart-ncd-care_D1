@@ -416,23 +416,38 @@ function openScreeningFormWindow(pid) {
     safetySetInputValue('in_dbp', citizen.screen_dbp); 
     safetySetInputValue('in_bsl', citizen.screen_bsl);
     
-    // ตั้งค่าตามระบบฐานข้อมูล โดยอาศัยหลักการของ HTML Radio Button
+    // [อัปเดตแก้ไข] สร้างตัวแกะข้อความเพื่อดึงความถี่ในวงเล็บ (...) ออกมา
+    const extractFreq = (text) => { 
+      if (!text) return null;
+      const match = text.match(/\(([^)]+)\)/); 
+      return match ? match[1] : null; 
+    };
+
+    // 1. การสูบบุหรี่
     if (citizen.screen_smoking.includes("ไม่สูบ")) { 
-      if(document.getElementById('sm_no')) document.getElementById('sm_no').checked = true; 
+      if(document.getElementById('sm_no')) { document.getElementById('sm_no').checked = true; document.getElementById('sm_no').dispatchEvent(new Event('change')); }
     } else { 
-      if(document.getElementById('sm_yes')) document.getElementById('sm_yes').checked = true; 
+      if(document.getElementById('sm_yes')) { document.getElementById('sm_yes').checked = true; document.getElementById('sm_yes').dispatchEvent(new Event('change')); }
+      const freq = extractFreq(citizen.screen_smoking);
+      if (freq && document.getElementById('sel_freq_smoke')) document.getElementById('sel_freq_smoke').value = freq;
     }
 
+    // 2. การดื่มสุรา
     if (citizen.screen_alcohol.includes("ไม่ดื่ม")) { 
-      if(document.getElementById('alc_no')) document.getElementById('alc_no').checked = true; 
+      if(document.getElementById('alc_no')) { document.getElementById('alc_no').checked = true; document.getElementById('alc_no').dispatchEvent(new Event('change')); } 
     } else { 
-      if(document.getElementById('alc_yes')) document.getElementById('alc_yes').checked = true; 
+      if(document.getElementById('alc_yes')) { document.getElementById('alc_yes').checked = true; document.getElementById('alc_yes').dispatchEvent(new Event('change')); }
+      const freq = extractFreq(citizen.screen_alcohol);
+      if (freq && document.getElementById('sel_freq_alc')) document.getElementById('sel_freq_alc').value = freq;
     }
 
+    // 3. การออกกำลังกาย
     if (citizen.screen_exercise.includes("ไม่เพียงพอ")) { 
-      if(document.getElementById('ex_low')) document.getElementById('ex_low').checked = true; 
+      if(document.getElementById('ex_low')) { document.getElementById('ex_low').checked = true; document.getElementById('ex_low').dispatchEvent(new Event('change')); } 
+      const freq = extractFreq(citizen.screen_exercise);
+      if (freq && document.getElementById('sel_freq_ex')) document.getElementById('sel_freq_ex').value = freq;
     } else { 
-      if(document.getElementById('ex_ok')) document.getElementById('ex_ok').checked = true; 
+      if(document.getElementById('ex_ok')) { document.getElementById('ex_ok').checked = true; document.getElementById('ex_ok').dispatchEvent(new Event('change')); }
     }
   } else { 
     safetySetInputValue('form_record_id', ""); 
@@ -441,14 +456,11 @@ function openScreeningFormWindow(pid) {
     safetySetInputValue('in_height', citizen.old_height || ""); 
     
     // ค่าเริ่มต้น (Default) สำหรับคนที่ยังไม่เคยคัดกรอง
-    if(document.getElementById('sm_no')) document.getElementById('sm_no').checked = true;
-    if(document.getElementById('alc_no')) document.getElementById('alc_no').checked = true;
-    if(document.getElementById('ex_ok')) document.getElementById('ex_ok').checked = true;
+    if(document.getElementById('sm_no')) { document.getElementById('sm_no').checked = true; document.getElementById('sm_no').dispatchEvent(new Event('change')); }
+    if(document.getElementById('alc_no')) { document.getElementById('alc_no').checked = true; document.getElementById('alc_no').dispatchEvent(new Event('change')); }
+    if(document.getElementById('ex_ok')) { document.getElementById('ex_ok').checked = true; document.getElementById('ex_ok').dispatchEvent(new Event('change')); }
   }
   
-  toggleBehaviorFreqPanel('smoke'); 
-  toggleBehaviorFreqPanel('alc'); 
-  toggleBehaviorFreqPanel('ex');
   attachRealtimeClinicalCalculationListeners(); 
   runClinicalEvaluationEngine();
   
