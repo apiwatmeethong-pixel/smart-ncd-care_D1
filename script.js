@@ -177,7 +177,7 @@ function shiftReportPage(num) { const maxPage = Math.ceil(masterReportList.lengt
 function shiftLogsPage(num) { const maxPage = Math.ceil(masterLogList.length / rowsPerPageLimit) || 1; logsCurrentPage = Math.max(1, Math.min(num, maxPage)); renderLogTable(); }
 
 async function fetchDashboardCountsFromServer() {
-  // ย้ายการประกาศตัวแปรมาไว้ที่นี่ เพื่อให้ใช้งานได้ทุกจุดในฟังก์ชัน
+  // ประกาศตัวแปรไว้บรรทัดแรกสุดของฟังก์ชัน เพื่อให้ใช้งานได้ทุกที่
   let filteredScreenings = [];
   let dataRows = [];
   let screenRows = [];
@@ -200,6 +200,7 @@ async function fetchDashboardCountsFromServer() {
     const assignedPids = dataRows ? dataRows.map(r => r.pid.toString()) : [];
     screenRows = await supabaseSelectAll('screening', '*');
     
+    // กำหนดค่าให้ตัวแปรที่ประกาศไว้ข้างต้น
     filteredScreenings = screenRows || []; 
     if (activeVhvSession.role === 'user' || activeVhvSession.role === 'staff') { 
       filteredScreenings = filteredScreenings.filter(s => assignedPids.includes(s.citizen_id.toString())); 
@@ -215,7 +216,7 @@ async function fetchDashboardCountsFromServer() {
       else if (item.ncd_status.includes('เขียว') || item.ncd_status.includes('ปกติ')) normalCount++;
     });
 
-    // อัปเดตข้อมูลการ์ดสรุปยอดด้านบน
+    // อัปเดต UI หน้า Dashboard (การ์ดบนสุด)
     safetySetTextContent('stat-total-count', assignedCount); 
     safetySetTextContent('stat-normal-count', normalCount); 
     safetySetTextContent('stat-risk-count', riskCount); 
@@ -226,7 +227,7 @@ async function fetchDashboardCountsFromServer() {
     let calculatedProgressPercent = ((filteredScreenings.length / (assignedCount || 1)) * 100).toFixed(1); 
     safetySetTextContent('stat-progress-percent', calculatedProgressPercent + '%');
 
-    // ส่วนที่ 1: กราฟและตารางสรุปรายชุมชน (Admin/Staff)
+    // ส่วนของ Admin/Staff: กราฟและตาราง
     if (activeVhvSession.role === 'admin' || activeVhvSession.role === 'staff') {
       const commStats = {};
       dataRows.forEach(r => {
@@ -247,25 +248,24 @@ async function fetchDashboardCountsFromServer() {
 
       const chartLabels = [], chartData = [];
       const tbody = document.getElementById('communityProgressTableBody'); 
-      if (tbody) tbody.innerHTML = '';
-
-      Object.keys(commStats).sort().forEach(comm => {
-        const { target, done } = commStats[comm];
-        const percent = target > 0 ? ((done / target) * 100).toFixed(1) : "0.0";
-        chartLabels.push(comm); chartData.push(percent);
-        if (tbody) {
+      if (tbody) {
+        tbody.innerHTML = '';
+        Object.keys(commStats).sort().forEach(comm => {
+          const { target, done } = commStats[comm];
+          const percent = target > 0 ? ((done / target) * 100).toFixed(1) : "0.0";
+          chartLabels.push(comm); chartData.push(percent);
           tbody.innerHTML += `<tr><td class="fw-bold">${comm}</td><td class="text-center">${target}</td><td class="text-center text-success">${done}</td><td class="text-center text-danger">${target - done}</td><td class="text-center">${percent}%</td></tr>`;
-        }
-      });
+        });
+      }
 
       const ctx = document.getElementById('communityProgressChart');
       if (ctx) {
-        if (dashChartInstance) dashChartInstance.destroy(); 
-        dashChartInstance = new Chart(ctx, { type: 'bar', data: { labels: chartLabels, datasets: [{ data: chartData, backgroundColor: 'rgba(14, 165, 233, 0.8)' }] }, options: { responsive: true, maintainAspectRatio: false } });
+        if (window.dashChartInstance) window.dashChartInstance.destroy(); 
+        window.dashChartInstance = new Chart(ctx, { type: 'bar', data: { labels: chartLabels, datasets: [{ data: chartData, backgroundColor: 'rgba(14, 165, 233, 0.8)' }] }, options: { responsive: true, maintainAspectRatio: false } });
       }
     }
 
-    // ส่วนที่ 2: ตารางสรุปรายบุคคล (User)
+    // ส่วนของ User: ตารางสรุปรายบุคคล
     const userTableContainer = document.getElementById('userDashboardTableContainer');
     if (activeVhvSession.role === 'user') {
       if(userTableContainer) userTableContainer.classList.remove('d-none');
@@ -280,10 +280,12 @@ async function fetchDashboardCountsFromServer() {
     } else {
       if(userTableContainer) userTableContainer.classList.add('d-none');
     }
+
   } catch (err) { 
     console.error("เกิดข้อผิดพลาดในการโหลด Dashboard:", err); 
   }
 }
+
 async function fetchPopulationListFromServer() {
   toggleLoaderDisplay(true);
   try {
